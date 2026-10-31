@@ -103,12 +103,17 @@ jobs:
           if (-not $tag) { throw "TAG 为空，终止发布" }
           Write-Host "Publishing release: $tag"
 
-          # 发布正文直接取 tag 的说明（--notes-from-tag）。
-          # 不要自己把 tag message 读出来塞进 --notes ——
-          # 多行文本会被 PowerShell 按空白拆成多个参数，
-          # gh 会把第二行当成 flag 报 "unknown shorthand flag"。
+          # 正文取 annotated tag 自己的说明。
+          # · 不用 --notes-from-tag：它取的是 tag 指向的 commit 的 message，
+          #   不是 tag 对象的 message（实测取到了最后一个 commit 的说明）。
+          # · 也不能直接塞进 --notes：多行文本会被 shell 按空白拆成多个参数，
+          #   gh 会把第二行当成 flag 报 unknown shorthand flag。
+          # 所以落到临时文件，用 --notes-file 传。
+          $notesFile = Join-Path $env:RUNNER_TEMP "release-notes.md"
+          git tag -l $tag --format='%(contents)' | Out-File -FilePath $notesFile -Encoding utf8
+
           gh release create $tag `
             "skillsmith/electron/dist/*.exe" `
             --title "Skillsmith $tag" `
-            --notes-from-tag `
+            --notes-file $notesFile `
             --verify-tag
