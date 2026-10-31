@@ -117,12 +117,52 @@ mv-image-pipeline/
 │   ├── timeline_build.py             时间轴生成（lrc 模式 / beat 模式）
 │   ├── mv_render.py                  成片渲染（zoompan + xfade）
 │   ├── subs_build.py                 字幕生成与烧制
-│   └── mv_qc.py                      质检（解码 / 亮度 / 镜头表 / 审图拼贴）
-└── assets/                           各配置样例（可直接改用）
+│   ├── mv_qc.py                      质检（解码 / 亮度 / 镜头表 / 审图拼贴）
+│   └── share_skills.py               跨 Agent 分发本 Skill（软链/联接）★
+├── assets/                           各配置样例（可直接改用）
     ├── shots.example.json            机位库定义
     ├── render.example.json           渲染配置
     └── subs.example.json             字幕配置
 ```
+
+---
+
+## 在多个 AI Agent 之间共享本 Skill
+
+每个 Agent 有自己的 skills 目录，同一份 Skill 复制到多处必然不同步。
+本仓库附带了 `share_skills.py`，用**单一真源 + 软链分发**解决：
+
+```bash
+# 扫描本机装了哪些 Agent
+python3 scripts/share_skills.py list
+
+# 把 mv-image-pipeline 软链到所有已装 Agent
+python3 scripts/share_skills.py link mv-image-pipeline
+
+# 看当前分发状态
+python3 scripts/share_skills.py status mv-image-pipeline
+
+# 解除软链（真源保留）
+python3 scripts/share_skills.py unlink mv-image-pipeline
+```
+
+**原理**：真源放在 `~/.agents/skills/<name>`（Codex / Cursor / Copilot 共用这个路径），
+其他 Agent 目录里放软链指过去。改真源一次，所有 Agent 同时生效。
+
+| Agent | 全局 skills 路径 |
+|---|---|
+| WorkBuddy | `~/.workbuddy/skills/` |
+| Claude Code | `~/.claude/skills/` |
+| Codex / Cursor / Copilot | `~/.agents/skills/` |
+| CodeBuddy | `~/.codebuddy/skills/` |
+| Gemini CLI | `~/.gemini/skills/` |
+| OpenCode | `~/.config/opencode/skills/` |
+
+**Windows 注意**：`~/.workbuddy` 不允许创建符号链接（`ln -s` 报 `Operation not permitted`），
+必须用 NTFS junction（目录联接）。脚本已自动处理，且 junction 不需要管理员权限。
+
+> 另一个跨端方案是 Vercel 的 `npx skills add <repo>`：一条命令装到 75+ 个 Agent，
+> 同样是软链分发。但 **WorkBuddy 不在它的官方支持列表里**，所以本仓库自带脚本更直接。
 
 ---
 

@@ -188,6 +188,20 @@ python scripts/mv_qc.py shots 时间轴.json
 
 **字幕重叠必须扫。** 分段生成时每段末句会多吃一条 2.2s 尾巴，导致相邻两句同屏。`subs_build.py` 内置收紧算法，但换流程后仍要验证。
 
+### 8. 多 Agent 共享（可选）
+
+如果要在这台机器上的多个 AI Agent（Claude Code / Codex / Cursor / WorkBuddy 等）之间共用本 Skill：
+
+```bash
+python scripts/share_skills.py list                     # 扫描已装 Agent
+python scripts/share_skills.py link mv-image-pipeline   # 软链分发到所有 Agent
+python scripts/share_skills.py status mv-image-pipeline # 看分发状态
+```
+
+原理是**单一真源 + 软链**：真源放 `~/.agents/skills/<name>`，其他 Agent 目录放软链指过去，改一处全端生效。
+
+Windows 上 `~/.workbuddy` 不允许 symlink，必须用 NTFS junction（目录联接），脚本已自动处理。WorkBuddy 不在 Vercel `npx skills` 的官方 Agent 列表里，所以用自带脚本更直接。
+
 ## 平台交付
 
 | 平台 | 规格 | 关键点 |
