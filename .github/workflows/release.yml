@@ -36,6 +36,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 取完整历史：发布说明要用 tag 的 message，需要能读到 tag
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -99,8 +102,14 @@ jobs:
           $tag = $env:TAG
           if (-not $tag) { throw "TAG 为空，终止发布" }
           Write-Host "Publishing release: $tag"
+
+          # 发布正文用 tag 的 message（写 tag 时写的说明），
+          # 而不是 --generate-notes 的 commit 列表 —— 后者信息量太低。
+          $notes = (git tag -l $tag --format='%(contents)').Trim()
+          if (-not $notes) { $notes = "Skillsmith $tag" }
+
           gh release create $tag `
             "skillsmith/electron/dist/*.exe" `
             --title "Skillsmith $tag" `
-            --generate-notes `
+            --notes $notes `
             --verify-tag
