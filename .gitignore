@@ -4,3 +4,12 @@ __pycache__/
 *.zip
 .DS_Store
 Thumbs.db
+
+# ── Skillsmith 桌面版：依赖与构建产物 ──
+# node_modules 有 464MB（Electron 运行时在内），dist 有 474MB，
+# 都不能进版本库 —— 源码提交，依赖用 npm install 还原，产物用 npm run dist 重建。
+skillsmith/electron/node_modules/
+skillsmith/electron/dist/
+skillsmith/electron/app/
+skillsmith/electron/build/
+skillsmith/electron/*.log

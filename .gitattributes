@@ -14,3 +14,9 @@
 *.wav binary
 *.pth binary
 *.safetensors binary
+
+# 二进制资源：不能做行尾转换
+*.woff2 binary
+*.ico binary
+*.exe binary
+*.dll binary

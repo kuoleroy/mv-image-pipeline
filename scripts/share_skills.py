@@ -45,7 +45,8 @@ AGENT_DIRS = [
     ("Gemini CLI", "~/.gemini/skills"),
     ("OpenCode", "~/.config/opencode/skills"),
     ("Windsurf", "~/.codeium/windsurf/skills"),
-    ("Trae", "~/.trae/skills"),
+    ("Trae 国际版", "~/.trae/skills"),
+    ("Trae 国内版 (CN)", "~/.trae-cn/skills"),
     ("Qwen Code", "~/.qwen/skills"),
     ("Kiro", "~/.kiro/skills"),
     ("Cline/Roo", "~/.cline/skills"),
@@ -55,6 +56,12 @@ AGENT_DIRS = [
 ]
 
 CANON_ROOT = os.path.expanduser("~/.agents/skills")
+
+# 这些 Agent 的 skill 扫描会硬过滤掉 junction/symlink
+# （过滤条件含 `!isSymbolicLink() && isDirectory()`，Windows Junction 被判为 symlink），
+# 所以只能给它们装**真实目录副本**，软链会被整个跳过。
+# 实测：华为 CodeArts 的 11 个 junction 全部未被加载，真实目录探针可通过。
+REAL_DIR_ONLY_AGENTS = {"华为 CodeArts Doer"}
 
 # 天翼 TeleAgent：用户 ID 随账号变化，用 glob 动态发现。
 TELEAGENT_ROOT = "~/.config/TeleAgent"
@@ -165,6 +172,28 @@ def _make_link(src, dst):
         os.symlink(src, dst)
 
 
+def _realdir_matches(dst, src):
+    """真实目录副本是否已与真源一致（比文件数 + SKILL.md 的 md5）。"""
+    import hashlib
+    if not os.path.isdir(dst) or is_link(dst):
+        return False
+    for rel in ("SKILL.md",):
+        a, b = os.path.join(src, rel), os.path.join(dst, rel)
+        if not (os.path.isfile(a) and os.path.isfile(b)):
+            return False
+        if hashlib.md5(open(a, "rb").read()).hexdigest() != \
+           hashlib.md5(open(b, "rb").read()).hexdigest():
+            return False
+
+    def count(root):
+        n = 0
+        for _, _, files in os.walk(root):
+            n += len(files)
+        return n
+
+    return count(src) == count(dst)
+
+
 def cmd_link(name, src=None, agents=None):
     canon = os.path.abspath(src) if src else os.path.join(CANON_ROOT, name)
     if not os.path.isdir(canon):
@@ -175,7 +204,11 @@ def cmd_link(name, src=None, agents=None):
     targets = []
     for agent, d in agent_targets(agents):
         p = os.path.join(d, name)
-        if os.path.realpath(p) == src_real if os.path.exists(p) else False:
+        if agent in REAL_DIR_ONLY_AGENTS:
+            # 真实目录副本：内容已一致就跳过，避免每次都重拷一遍
+            if _realdir_matches(p, src_real):
+                continue
+        elif os.path.realpath(p) == src_real if os.path.exists(p) else False:
             continue                                    # 已经指向真源
         targets.append((agent, d, p))
 
@@ -186,6 +219,20 @@ def cmd_link(name, src=None, agents=None):
     ok, fail = 0, 0
     for agent, d, p in targets:
         try:
+            if agent in REAL_DIR_ONLY_AGENTS:
+                # 该端只认真实目录：复制副本，而不是建 junction
+                if os.path.exists(p) or is_link(p):
+                    if is_link(p):
+                        _remove_link(p)
+                    else:
+                        bak = p + ".bak"
+                        if os.path.exists(bak):
+                            shutil.rmtree(bak, ignore_errors=True)
+                        os.rename(p, bak)
+                shutil.copytree(src_real, p, symlinks=False)
+                print("  [副本] %-26s %s" % (agent, p))
+                ok += 1
+                continue
             if os.path.exists(p) or is_link(p):
                 # 已有真实副本 -> 备份后替换为软链
                 bak = p + ".bak"
@@ -202,6 +249,8 @@ def cmd_link(name, src=None, agents=None):
     print("\n完成：%d 个链接成功，%d 个失败" % (ok, fail))
     print("真源: %s" % src_real)
     print("提示：改真源一次，所有 Agent 同时生效。")
+    print("（%s 只认真实目录，用的是副本而非软链）"
+          % "、".join(sorted(REAL_DIR_ONLY_AGENTS)))
     return 0 if fail == 0 else 1
 
 
