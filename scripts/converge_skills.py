@@ -36,6 +36,7 @@ import time
 # 各 agent 的 skills 目录候选（相对 home）
 AGENT_DIRS = [
     ("WorkBuddy", "~/.workbuddy/skills"),
+    ("WorkBuddy 国际版", "~/.workbuddy-ai/skills"),
     ("Claude Code", "~/.claude/skills"),
     ("Codex/Cursor/Copilot 等", "~/.agents/skills"),
     ("CodeBuddy", "~/.codebuddy/skills"),
@@ -52,6 +53,14 @@ AGENT_DIRS = [
 
 CANON_ROOT = os.path.expanduser("~/.agents/skills")
 META = "_skillhub_meta.json"
+
+# 脚手架目录：以下划线开头（如新版 WorkBuddy 的 _template/）。
+# 它们带 SKILL.md，但不是可调用 skill —— 必须跳过，否则会被收拢搬走。
+SCAFFOLD_PREFIX = "_"
+
+
+def is_scaffold(name):
+    return name.startswith(SCAFFOLD_PREFIX)
 
 
 def is_junction(path):
@@ -146,6 +155,8 @@ def cmd_collect(apply=False, canon=None):
         for name in entries:
             if name.startswith('.'):
                 continue
+            if is_scaffold(name):
+                continue                        # _template 等脚手架，不是 skill
             p = os.path.join(d, name)
             if not os.path.isdir(p):
                 continue
@@ -236,7 +247,8 @@ def cmd_link(apply=False, canon=None, only=None):
         return 1
 
     skills = [x for x in sorted(os.listdir(canon_root))
-              if not x.startswith('.') and os.path.isdir(os.path.join(canon_root, x))]
+              if not x.startswith('.') and not is_scaffold(x)
+              and os.path.isdir(os.path.join(canon_root, x))]
     if only:
         skills = [s for s in skills if s in only]
     if not skills:

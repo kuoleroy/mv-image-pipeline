@@ -37,6 +37,7 @@ import sys
 # 各 agent 的 skills 目录候选（相对 home）。第一个存在的即为已安装。
 AGENT_DIRS = [
     ("WorkBuddy", "~/.workbuddy/skills"),
+    ("WorkBuddy 国际版", "~/.workbuddy-ai/skills"),
     ("Claude Code", "~/.claude/skills"),
     ("Codex/Cursor/Copilot 等", "~/.agents/skills"),
     ("CodeBuddy", "~/.codebuddy/skills"),

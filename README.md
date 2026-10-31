@@ -152,6 +152,7 @@ python3 scripts/share_skills.py unlink mv-image-pipeline
 | Agent | 全局 skills 路径 |
 |---|---|
 | WorkBuddy | `~/.workbuddy/skills/` |
+| WorkBuddy 国际版 | `~/.workbuddy-ai/skills/` |
 | Claude Code | `~/.claude/skills/` |
 | Codex / Cursor / Copilot | `~/.agents/skills/` |
 | CodeBuddy | `~/.codebuddy/skills/` |
@@ -160,6 +161,9 @@ python3 scripts/share_skills.py unlink mv-image-pipeline
 
 **Windows 注意**：`~/.workbuddy` 不允许创建符号链接（`ln -s` 报 `Operation not permitted`），
 必须用 NTFS junction（目录联接）。脚本已自动处理，且 junction 不需要管理员权限。
+
+**脚手架目录**：以 `_` 开头的目录（如国际版的 `_template/`）是新建 skill 的模板，
+不是可调用 skill。`converge_skills.py` 会自动跳过，不会把它们搬走或分发。
 
 > 另一个跨端方案是 Vercel 的 `npx skills add <repo>`：一条命令装到 75+ 个 Agent，
 > 同样是软链分发。但 **WorkBuddy 不在它的官方支持列表里**，所以本仓库自带脚本更直接。

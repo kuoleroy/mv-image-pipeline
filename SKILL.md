@@ -202,6 +202,8 @@ python scripts/share_skills.py status mv-image-pipeline # 看分发状态
 
 Windows 上 `~/.workbuddy` 不允许 symlink，必须用 NTFS junction（目录联接），脚本已自动处理。WorkBuddy 不在 Vercel `npx skills` 的官方 Agent 列表里，所以用自带脚本更直接。
 
+各端 skills 路径：WorkBuddy `~/.workbuddy/skills/`、WorkBuddy 国际版 `~/.workbuddy-ai/skills/`、Claude Code `~/.claude/skills/`、Codex/Cursor/Copilot `~/.agents/skills/`、CodeBuddy `~/.codebuddy/skills/`。以 `_` 开头的目录（如 `_template/`）是脚手架不是 skill，收敛脚本会自动跳过。
+
 #### 各端现场写 skill 后如何收敛
 
 Skill 常常是在某个 Agent 会话里现场写出来的（Claude Code 写个 review skill、CodeBuddy 写个 deploy skill），此时它只存在于那一个端。用 `converge_skills.py` 收拢：
