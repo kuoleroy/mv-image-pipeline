@@ -257,3 +257,5 @@ python3 scripts/timeline_build.py beat --bpm 92 --duration 42 --hook 3 \
 ## 许可
 
 MIT
+
+<!-- 本地 Skill 目录即 Git 仓库，可直接 git push -->
