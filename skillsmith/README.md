@@ -10,6 +10,32 @@
 
 ---
 
+## ⬇️ 下载
+
+**[Releases](../../releases)** 页面有打包好的 Windows 安装包（NSIS，双击即用，
+不需要装 Node）。
+
+> 安装包**未做代码签名**（没有证书），Windows SmartScreen 可能提示"未知发布者"，
+> 点"更多信息 → 仍要运行"即可。
+
+想自己构建：
+
+```bash
+cd electron
+npm ci
+npm run dist        # 产物：dist/Skillsmith Setup 1.0.0.exe
+```
+
+推 tag（`v*`）会让 GitHub Actions 自动构建并发布 Release：
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+---
+
+---
+
 ## 两种形态
 
 | | 浏览器版 | 桌面版 |

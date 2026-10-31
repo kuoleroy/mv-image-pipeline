@@ -52,6 +52,15 @@ function main() {
   copyDir(path.join(ROOT, 'vendor'), path.join(STAGE, 'vendor'));
   copyDir(path.join(ROOT, 'assets'), path.join(STAGE, 'assets'));
 
+  // electron-builder 的图标目录（buildResources）。
+  // 放在这里做而不是手工 cp —— 否则本地能打包、CI 上却因为缺文件而失败。
+  const BUILD_DIR = path.join(__dirname, 'build');
+  fs.mkdirSync(BUILD_DIR, { recursive: true });
+  for (const f of ['icon.ico', 'icon.png']) {
+    const src = path.join(ROOT, 'assets', f);
+    if (fs.existsSync(src)) fs.copyFileSync(src, path.join(BUILD_DIR, f));
+  }
+
   // 打包用的 package.json：去掉 devDependencies（运行时不需要）
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
   const slim = {
