@@ -54,6 +54,30 @@ AGENT_DIRS = [
 
 CANON_ROOT = os.path.expanduser("~/.agents/skills")
 
+# 天翼 TeleAgent：用户 ID 随账号变化，用 glob 动态发现。
+TELEAGENT_ROOT = "~/.config/TeleAgent"
+
+
+def discover_teleagent_dirs():
+    """发现 TeleAgent 的用户级 skills 目录（路径含 user_id，不能硬编码）。"""
+    import glob
+    pat = os.path.expanduser(os.path.join(TELEAGENT_ROOT, "users", "*", "skills"))
+    return [p for p in sorted(glob.glob(pat)) if os.path.isdir(p)]
+
+
+def agent_targets(agents=None):
+    """返回本机已装 agent 的 (name, dir) 列表，可按名称过滤。"""
+    out = []
+    for agent, rel in AGENT_DIRS:
+        d = os.path.expanduser(rel)
+        if os.path.isdir(d):
+            out.append((agent, d))
+    for d in discover_teleagent_dirs():
+        out.append(("TeleAgent(天翼)", d))
+    if agents:
+        out = [(a, d) for a, d in out if a in agents]
+    return out
+
 
 def is_junction(path):
     """Windows junction 检测。Python 3.12+ 有 os.path.isjunction；
@@ -96,12 +120,10 @@ def link_target(path):
 def cmd_list():
     print("扫描本机 Agent skills 目录：\n")
     found = 0
-    for name, rel in AGENT_DIRS:
-        d = os.path.expanduser(rel)
-        if os.path.isdir(d):
-            n = len([x for x in os.listdir(d) if not x.startswith('.')])
-            print("  [有] %-26s %s   (%d 个 skill)" % (name, rel, n))
-            found += 1
+    for name, d in agent_targets():
+        n = len([x for x in os.listdir(d) if not x.startswith('.')])
+        print("  [有] %-26s %s   (%d 个 skill)" % (name, d, n))
+        found += 1
     if not found:
         print("  未发现任何 Agent skills 目录")
     return 0
@@ -112,17 +134,16 @@ def cmd_status(name):
     print("Skill: %s\n" % name)
     print("  规范真源: %s" % (canon if os.path.exists(canon) else "（不存在）"))
     print("\n  各 Agent 端：")
-    for agent, rel in AGENT_DIRS:
-        d = os.path.expanduser(rel)
+    for agent, d in agent_targets():
         p = os.path.join(d, name)
         if not os.path.exists(p) and not is_link(p):
             continue
         if is_link(p):
             tgt = link_target(p)
             same = " ← 指向真源" if tgt and os.path.normcase(tgt) == os.path.normcase(os.path.realpath(canon)) else " ← 指向别处"
-            print("    %-26s %s  [软链]%s" % (agent, rel, same))
+            print("    %-26s %s  [软链]%s" % (agent, d, same))
         else:
-            print("    %-26s %s  [真实副本，独立]" % (agent, rel))
+            print("    %-26s %s  [真实副本，独立]" % (agent, d))
     return 0
 
 
@@ -150,12 +171,7 @@ def cmd_link(name, src=None, agents=None):
     src_real = os.path.realpath(canon)
 
     targets = []
-    for agent, rel in AGENT_DIRS:
-        if agents and agent not in agents:
-            continue
-        d = os.path.expanduser(rel)
-        if not os.path.isdir(d):
-            continue
+    for agent, d in agent_targets(agents):
         p = os.path.join(d, name)
         if os.path.realpath(p) == src_real if os.path.exists(p) else False:
             continue                                    # 已经指向真源
@@ -187,17 +203,34 @@ def cmd_link(name, src=None, agents=None):
     return 0 if fail == 0 else 1
 
 
+def _remove_link(path):
+    """移除目录链接（junction/symlink），不碰目标内容。
+
+    Windows 上 os.unlink 对 junction 会失败（被当成目录），
+    shutil.rmtree 更危险 —— 会顺着 junction 删掉真源。走 .NET API
+    只摘 reparse point。
+    """
+    if os.name == "nt" and is_junction(path):
+        ps = ('[System.IO.Directory]::Delete("%s", $false)'
+              % path.replace('"', '""'))
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError("junction 移除失败: %s" % (r.stderr or r.stdout).strip())
+        return
+    os.unlink(path)
+
+
 def cmd_unlink(name, keep_source=True):
     n = 0
-    for agent, rel in AGENT_DIRS:
-        d = os.path.expanduser(rel)
+    for agent, d in agent_targets():
         p = os.path.join(d, name)
         if is_link(p):
             try:
-                os.unlink(p)
+                _remove_link(p)
                 print("  [解除] %s" % p)
                 n += 1
-            except OSError as e:
+            except (OSError, RuntimeError) as e:
                 print("  [失败] %s —— %s" % (p, e), file=sys.stderr)
     print("解除 %d 处软链" % n)
     return 0

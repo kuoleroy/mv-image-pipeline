@@ -51,6 +51,11 @@ AGENT_DIRS = [
     ("Amp/Replit/Universal", "~/.config/agents/skills"),
 ]
 
+# 天翼 TeleAgent：路径含用户 ID（v1_public_xxx），需动态发现而非硬编码。
+# 见 discover_teleagent_dirs()。
+TELEAGENT_ROOT = "~/.config/TeleAgent"
+TELEAGENT_INSTALL = "C:/Program Files/TeleAgent/resources/skills"
+
 CANON_ROOT = os.path.expanduser("~/.agents/skills")
 META = "_skillhub_meta.json"
 
@@ -61,6 +66,48 @@ SCAFFOLD_PREFIX = "_"
 
 def is_scaffold(name):
     return name.startswith(SCAFFOLD_PREFIX)
+
+
+def discover_teleagent_dirs():
+    """发现 TeleAgent 的用户级 skills 目录。
+
+    路径形如 ~/.config/TeleAgent/users/<user_id>/skills，user_id 随账号变化，
+    因此用 glob 动态找，不能硬编码。
+    """
+    import glob
+    pat = os.path.expanduser(os.path.join(TELEAGENT_ROOT, "users", "*", "skills"))
+    out = []
+    for p in sorted(glob.glob(pat)):
+        if os.path.isdir(p):
+            out.append(p)
+    return out
+
+
+def teleagent_builtin_names():
+    """TeleAgent 内置托管 skill 名集合。
+
+    内置 skill 来自安装包 resources/skills/，由 buildin-meta.json 记录
+    versionId/serverId —— 它们会被 TeleAgent 从服务端同步更新。搬走等于
+    破坏它的更新与自修复机制，所以必须跳过。
+    """
+    names = set()
+    install = os.path.expanduser(TELEAGENT_INSTALL)
+    meta = os.path.join(install, "buildin-meta.json")
+    try:
+        with open(meta, encoding="utf-8") as f:
+            names = set(json.load(f).keys())
+    except (OSError, ValueError):
+        pass
+    if not names:
+        # 兜底：直接以安装包里的目录名作为内置集合
+        try:
+            for n in os.listdir(install):
+                if os.path.isdir(os.path.join(install, n)):
+                    names.add(n)
+        except OSError:
+            pass
+    return names
+
 
 
 def is_junction(path):
@@ -128,6 +175,24 @@ def _make_link(src, dst):
         os.symlink(src, dst)
 
 
+def _remove_link(path):
+    """移除一个目录链接（junction / symlink），不碰目标内容。
+
+    Windows 上 os.unlink 对 junction 会失败（它被当成目录），
+    且 shutil.rmtree 会顺着 junction 删掉真源 —— 所以必须走 .NET API，
+    只摘掉 reparse point 本身。
+    """
+    if os.name == "nt" and is_junction(path):
+        ps = ('[System.IO.Directory]::Delete("%s", $false)'
+              % path.replace('"', '""'))
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError("junction 移除失败: %s" % (r.stderr or r.stdout).strip())
+        return
+    os.unlink(path)
+
+
 def installed_agents():
     """返回本机已装 agent 的 (name, dir) 列表。"""
     out = []
@@ -135,7 +200,33 @@ def installed_agents():
         d = os.path.expanduser(rel)
         if os.path.isdir(d):
             out.append((agent, d))
+    for d in discover_teleagent_dirs():
+        out.append(("TeleAgent(天翼)", d))
     return out
+
+
+def is_teleagent_builtin(agent, name):
+    """该 skill 是否为 TeleAgent 内置托管（会从服务端同步更新，不可搬动）。"""
+    if not agent.startswith("TeleAgent"):
+        return False
+    return name in teleagent_builtin_names()
+
+
+# 只在特定端生效的 skill：依赖该端专有运行时。
+# browser-cli-skill 依赖 TeleAgent 打包的 tele_opencli 与浏览器扩展
+# （~/.local/share/TeleAgent/），在其他端跑不起来。
+AGENT_ONLY_SKILLS = {
+    "browser-cli-skill": ("TeleAgent",),
+}
+
+
+def agent_allows(agent, name):
+    """该 skill 是否应该在 agent 端分发。"""
+    allow = AGENT_ONLY_SKILLS.get(name)
+    if allow:
+        return agent.startswith(allow)
+    return True
+
 
 
 def cmd_collect(apply=False, canon=None):
@@ -147,6 +238,7 @@ def cmd_collect(apply=False, canon=None):
     # 1. 扫描各端，发现 skill
     found = {}          # skill_name -> [(agent, path)]
     managed = []        # skillhub 托管，跳过
+    builtin = []        # TeleAgent 内置托管，跳过
     for agent, d in installed_agents():
         try:
             entries = sorted(os.listdir(d))
@@ -165,6 +257,9 @@ def cmd_collect(apply=False, canon=None):
             if is_managed(p):
                 managed.append((agent, name, p))
                 continue
+            if is_teleagent_builtin(agent, name):
+                builtin.append((agent, name, p))
+                continue
             if not has_skill_md(p):
                 continue
             found.setdefault(name, []).append((agent, p))
@@ -172,6 +267,12 @@ def cmd_collect(apply=False, canon=None):
     if managed:
         print("跳过 %d 个 skillhub 托管 skill（由 marketplace 管理，搬动会破坏元数据）：" % len(managed))
         for agent, name, _ in managed:
+            print("    %-26s %s" % (agent, name))
+        print()
+
+    if builtin:
+        print("跳过 %d 个 TeleAgent 内置 skill（由服务端同步更新，搬动会破坏其更新机制）：" % len(builtin))
+        for agent, name, _ in builtin:
             print("    %-26s %s" % (agent, name))
         print()
 
@@ -259,8 +360,15 @@ def cmd_link(apply=False, canon=None, only=None):
     agents = installed_agents()
     ok = skip = fail = 0
     cleaned = 0
+    builtin_names = teleagent_builtin_names()
     for agent, d in agents:
         for name in skills:
+            # TeleAgent 内置托管 skill 不外传（它们由服务端同步更新，搬走即破坏）
+            if name in builtin_names:
+                continue
+            # 仅限特定端的 skill 不分发到其他端
+            if not agent_allows(agent, name):
+                continue
             src = os.path.join(canon_root, name)
             dst = os.path.join(d, name)
             if os.path.exists(dst):
@@ -287,7 +395,9 @@ def cmd_link(apply=False, canon=None, only=None):
                 print("  [失败] %-26s %-24s —— %s" % (agent, name, e), file=sys.stderr)
                 fail += 1
 
-        # 清理孤儿链接（指向真源但真源已无该 skill）
+        # 清理不该存在的链接：
+        #   a) 指向真源但真源已无该 skill（孤儿）
+        #   b) 该 skill 不允许分发到本端（如 browser-cli-skill 只留在 TeleAgent）
         try:
             entries = os.listdir(d)
         except OSError:
@@ -298,17 +408,23 @@ def cmd_link(apply=False, canon=None, only=None):
             p = os.path.join(d, name)
             if not is_link(p):
                 continue
-            if os.path.realpath(p).startswith(canon_real) and not os.path.exists(os.path.join(canon_root, name)):
-                if apply:
-                    try:
-                        os.unlink(p)
-                        print("  [清理] %-26s %-24s （真源已删除）" % (agent, name))
-                        cleaned += 1
-                    except OSError as e:
-                        print("  [失败] 清理 %s —— %s" % (p, e), file=sys.stderr)
-                else:
-                    print("  [清理] %-26s %-24s （真源已删除，将移除）" % (agent, name))
+            if not os.path.realpath(p).startswith(canon_real):
+                continue
+            orphan = not os.path.exists(os.path.join(canon_root, name))
+            not_allowed = (name in builtin_names) or (not agent_allows(agent, name))
+            if not (orphan or not_allowed):
+                continue
+            reason = "真源已删除" if orphan else "不应分发到本端"
+            if apply:
+                try:
+                    _remove_link(p)
+                    print("  [清理] %-26s %-24s （%s）" % (agent, name, reason))
                     cleaned += 1
+                except OSError as e:
+                    print("  [失败] 清理 %s —— %s" % (p, e), file=sys.stderr)
+            else:
+                print("  [清理] %-26s %-24s （%s，将移除）" % (agent, name, reason))
+                cleaned += 1
 
     print("\n%s：%d 个链接%s%s%s"
           % ("已执行" if apply else "试运行", ok,

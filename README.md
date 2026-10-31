@@ -153,6 +153,7 @@ python3 scripts/share_skills.py unlink mv-image-pipeline
 |---|---|
 | WorkBuddy | `~/.workbuddy/skills/` |
 | WorkBuddy 国际版 | `~/.workbuddy-ai/skills/` |
+| 天翼 TeleAgent | `~/.config/TeleAgent/users/<user_id>/skills/` |
 | Claude Code | `~/.claude/skills/` |
 | Codex / Cursor / Copilot | `~/.agents/skills/` |
 | CodeBuddy | `~/.codebuddy/skills/` |
@@ -164,6 +165,19 @@ python3 scripts/share_skills.py unlink mv-image-pipeline
 
 **脚手架目录**：以 `_` 开头的目录（如国际版的 `_template/`）是新建 skill 的模板，
 不是可调用 skill。`converge_skills.py` 会自动跳过，不会把它们搬走或分发。
+
+**受管 skill 不搬动**：两类 skill 会被自动跳过 ——
+
+| 类型 | 判据 | 原因 |
+|---|---|---|
+| skillhub 托管 | 目录内有 `_skillhub_meta.json` | 元数据存绝对路径，搬动会破坏 marketplace 更新 |
+| TeleAgent 内置 | 名字在安装包 `resources/skills/buildin-meta.json` 里 | 带 `versionId`/`serverId`，由服务端同步更新 |
+
+TeleAgent 的用户 ID 随账号变化，脚本用 glob 动态发现，不硬编码路径。
+
+**端专属 skill**：`browser-cli-skill` 依赖 TeleAgent 打包的 `tele_opencli` 运行时
+（`~/.local/share/TeleAgent/`），在其他端跑不起来，因此只分发到 TeleAgent 端。
+
 
 > 另一个跨端方案是 Vercel 的 `npx skills add <repo>`：一条命令装到 75+ 个 Agent，
 > 同样是软链分发。但 **WorkBuddy 不在它的官方支持列表里**，所以本仓库自带脚本更直接。
