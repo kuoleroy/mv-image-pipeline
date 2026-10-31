@@ -22,9 +22,15 @@
 
 ```bash
 cd electron
-npm ci
+npm ci              # postinstall 会自动下载 Electron 运行时（~250MB）
 npm run dist        # 产物：dist/Skillsmith Setup 1.0.0.exe
 ```
+
+> Electron 37+ 不再自带 `postinstall`，运行时下载要自己触发。
+> 本项目在 `package.json` 里补了 `postinstall` 调 `install.js`，
+> 所以 `npm ci` / `npm install` 会自动完成，国内可设
+> `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 加速。
+> 注意镜像地址末尾**不能带 `v`** —— 版本号自带的 `v` 前缀由 electron 自己拼。
 
 推 tag（`v*`）会让 GitHub Actions 自动构建并发布 Release：
 

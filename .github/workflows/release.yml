@@ -47,8 +47,11 @@ jobs:
       - name: Install dependencies
         working-directory: skillsmith/electron
         env:
-          # electron 的 postinstall 要用这个下运行时（~250MB）
-          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/v
+          # Electron 37+ 不再有自带的 postinstall，我们在 package.json 里
+          # 补了 postinstall 调 install.js 来下载运行时（~250MB）。
+          # 镜像地址末尾不能带 v —— @electron/get 的 BASE_URL 不含 v，
+          # 版本号自带的 v 前缀由它自己拼，多写会变成 vv45.2.1 直接 404。
+          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
         run: npm ci
 
       - name: Unit tests
@@ -68,9 +71,9 @@ jobs:
           # 若在受限网络里构建，可换成：
           #   ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           #   ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
-          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/v
+          ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
         run: |
-          npx electron-builder --win --x64 --publish never
+          npx electron-builder --win --x64 --publish never --config.electronDist="node_modules/electron/dist"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

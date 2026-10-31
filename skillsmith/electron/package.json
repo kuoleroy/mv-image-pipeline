@@ -9,7 +9,8 @@
     "start": "electron .",
     "stage": "node stage.js",
     "pack": "node stage.js && electron-builder --dir",
-    "dist": "node stage.js && electron-builder"
+    "dist": "node stage.js && electron-builder",
+    "postinstall": "node node_modules/electron/install.js"
   },
   "devDependencies": {
     "electron": "^45.2.1",
