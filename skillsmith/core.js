@@ -498,6 +498,89 @@ function snapshot() {
   return { rows, agents, canonRoot: canonRoot() };
 }
 
+// ---------------------------------------------------------------- 并发锁
+
+/**
+ * 写操作（开关 / 批量 / 重新绑定）必须跨进程串行化。
+ *
+ * 为什么需要：
+ *   开发版和打包版可以同时在跑（甚至两个终端各开一个）。两个进程各改各的
+ *   junction —— 一方在摘链接、另一方在建链接，最终状态可能既没开也没关。
+ *   真源只有一个，冲突的不是数据而是「谁在改」。
+ *
+ * 实现：
+ *   用 O_EXCL 排他创建锁文件（Windows/Unix 都有效，跨进程）。
+ *   拿到锁才动，拿不到就等，等到超时明确报错 —— 而不是静默写坏。
+ *   锁文件超过 30 秒视为上一个进程崩溃留下的陈旧锁，自动清理。
+ *
+ * 重入：
+ *   bulk() 内部会调 disable()/enable()，所以同进程内用深度计数，
+ *   已持锁时直接放行，不会自己等自己。
+ */
+const LOCK_FILE = path.join(path.dirname(settings.CONFIG_FILE), '.lock');
+const LOCK_STALE_MS = 30000;
+const LOCK_TIMEOUT_MS = 15000;
+
+let _lockDepth = 0;
+
+function acquireLock(timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      const fd = fs.openSync(LOCK_FILE, 'wx');
+      try {
+        fs.writeSync(fd, `${process.pid} @ ${new Date().toISOString()}`);
+      } finally {
+        fs.closeSync(fd);
+      }
+      return;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      // 陈旧锁检测：持有者崩溃了，锁文件不会自己消失
+      try {
+        const st = fs.statSync(LOCK_FILE);
+        if (Date.now() - st.mtimeMs > LOCK_STALE_MS) {
+          try { fs.unlinkSync(LOCK_FILE); } catch (e2) { /* ignore */ }
+          continue;
+        }
+      } catch (e2) {
+        continue;   // 锁刚被别人释放了，重新抢
+      }
+      if (Date.now() > deadline) {
+        throw new Error(
+          '另一个 Skillsmith 实例正在修改技能，请稍后重试（锁等待超时）'
+        );
+      }
+      // 同步等待 100ms。Node 主线程里 Atomics.wait 可以当 sleep 用。
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+    }
+  }
+}
+
+function releaseLock() {
+  try { fs.unlinkSync(LOCK_FILE); } catch (e) { /* ignore */ }
+}
+
+/** 在锁内执行 fn；支持同进程重入。 */
+function withLock(fn) {
+  if (_lockDepth > 0) {
+    _lockDepth++;
+    try {
+      return fn();
+    } finally {
+      _lockDepth--;
+    }
+  }
+  acquireLock(LOCK_TIMEOUT_MS);
+  _lockDepth = 1;
+  try {
+    return fn();
+  } finally {
+    _lockDepth = 0;
+    releaseLock();
+  }
+}
+
 // ---------------------------------------------------------------- 开关操作
 
 /** 开启一个技能（对指定端或全部端） */
@@ -747,10 +830,12 @@ module.exports = {
   applicableTo,
   installedTargets,
   agentOn,
-  enable,
-  disable,
-  bulk,
-  rebindAll,
+  // 写操作统一在导出层加锁（函数体本身不动）。
+  // bulk() 内部调的是模块内的 disable/enable，靠 withLock 的重入计数放行。
+  enable: (...args) => withLock(() => enable(...args)),
+  disable: (...args) => withLock(() => disable(...args)),
+  bulk: (...args) => withLock(() => bulk(...args)),
+  rebindAll: (...args) => withLock(() => rebindAll(...args)),
   estimateTokens,
   dirStats,
 };
