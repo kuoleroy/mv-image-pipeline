@@ -1,0 +1,56 @@
+{
+  "out_dir": "机位库",
+  "width": 1536,
+  "height": 864,
+  "resolution": 1024,
+  "unet": "qwen_image_2.1_int8_convrot.safetensors",
+  "turbo_unet": "qwen_image_2.1_turbo_int8_convrot.safetensors",
+  "clip": "qwen3vl_8b_w4a8.safetensors",
+  "vae": "qwen_image_2.1_vae_bf16.safetensors",
+  "steps": 25,
+  "cfg": 2.5,
+  "seed": 20261031,
+
+  "style_anchor": "Japanese anime film still, hand-drawn cel shading, 90s anime aesthetic, cinematic composition, soft film grain, atmospheric haze, muted desaturated color palette, environment stays readable",
+
+  "vertical_anchor": "vertical 9:16 composition, tall narrow framing, strong vertical lines",
+
+  "tones": {
+    "dusk": "warm dusk light, pale orange and grey-blue palette",
+    "rain": "cold rainy night, sodium and cyan light, wet reflections",
+    "pale": "washed-out watercolor light, near monochrome pale grey and cream, soft edges, dreamlike, slightly translucent",
+    "dawn": "pale blue dawn light, almost no color, very quiet",
+    "room": "dim interior light, warm dust in the air, low key",
+    "dark": "deep night, single hard light source, most of the frame in shadow but shapes still readable"
+  },
+
+  "negative": "photorealistic, 3d render, cgi, chibi, moe, big sparkling eyes, blush, bright saturated colors, glossy, text, watermark, signature, lettering, signage text, chinese characters, kanji, japanese characters, readable signs, posters with text, subtitles, extra fingers, deformed hands, oversaturated, plastic skin, low quality, blurry, extra limbs, monochrome black void background, pure black frame",
+
+  "vertical_extra_negative": "landscape orientation, wide horizontal composition, letterboxing",
+
+  "shots": [
+    {
+      "id": "A01",
+      "scene": "wide shot, a lone figure on a rooftop at dusk, vast empty sky filling two thirds of the frame, the person very small",
+      "person": "full",
+      "tail": "small in frame, low camera",
+      "tone": "dusk"
+    },
+    {
+      "id": "A02",
+      "scene": "close shot of a cracked mirror, a crack running down the glass, dim bathroom light",
+      "person": "face",
+      "tone": "dark"
+    },
+    {
+      "id": "A03",
+      "scene": "close shot of a white bedsheet with deep creases and a long hollow pressed into it, one corner dragged off the mattress, an empty pillow beside it, pale grey morning light from a window, no people",
+      "tone": "pale"
+    },
+    {
+      "id": "A04",
+      "scene": "vertical shot down a very narrow alley, walls close on both sides, one street light at the far end, rain falling through the beam",
+      "tone": "rain"
+    }
+  ]
+}

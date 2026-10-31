@@ -1,0 +1,71 @@
+{
+  "base_dir": ".",
+  "canvas": [1920, 1080],
+  "lrc": "歌词/歌名.lrc",
+  "offset": 0.0,
+  "burn_out": "成片_带词.mp4",
+
+  "styles": {
+    "ink": {
+      "font": "Noto Sans SC",
+      "size": 74,
+      "bold": 1,
+      "spacing": 4,
+      "y": 1685,
+      "an": 5,
+      "sung": "&H001E1A18",
+      "unsung": "&H0092969C",
+      "outline": "&H96FFFFFF",
+      "border": 2.0,
+      "shadow": 1,
+      "glow_color": null,
+      "glow_blur": 0,
+      "glow_border": 0,
+      "intro": "\\fad(520,520)\\fscx100\\fscy100",
+      "speed": 3.2
+    }
+  },
+
+  "segments": [
+    {
+      "name": "主歌1",
+      "from": 0.0,
+      "to": 17.0,
+      "base": "ink",
+      "tone": "ink",
+      "size": 74,
+      "spacing": 4,
+      "plain": true
+    },
+    {
+      "name": "副歌1",
+      "from": 17.0,
+      "to": 34.0,
+      "base": "ink",
+      "tone": "ink",
+      "size": 95,
+      "spacing": 4,
+      "plain": true
+    },
+    {
+      "name": "副歌2",
+      "from": 34.0,
+      "to": 51.0,
+      "base": "ink",
+      "tone": "light",
+      "size": 95,
+      "spacing": 4,
+      "plain": true
+    },
+    {
+      "name": "桥段",
+      "from": 51.0,
+      "to": 68.0,
+      "base": "ink",
+      "tone": "pale",
+      "size": 82,
+      "spacing": 7,
+      "plain": true
+    }
+  ]
+}

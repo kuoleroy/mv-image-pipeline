@@ -1,0 +1,25 @@
+{
+  "base_dir": ".",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "crf": 19,
+  "clipcrf": 20,
+  "overlap": 0.6,
+  "fit": "cover",
+  "grain": "noise=alls=4:allf=t+u",
+
+  "timeline": "时间轴.json",
+  "audio": "原曲.wav",
+  "output": "成片_无词.mp4",
+  "work_dir": "_clips_tmp",
+
+  "routes": {
+    "A": ["机位库_二次元_2k", "机位库_二次元"],
+    "G": ["机位库_写实_2k", "机位库_写实"],
+    "Y": ["机位库_竖屏_2k", "机位库_竖屏"],
+    "P": ["意象图_人物"],
+    "Q": ["意象图_人物2"],
+    "V": ["动态镜头"]
+  }
+}
