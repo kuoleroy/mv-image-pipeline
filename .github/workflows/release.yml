@@ -103,14 +103,39 @@ jobs:
           if (-not $tag) { throw "TAG 为空，终止发布" }
           Write-Host "Publishing release: $tag"
 
-          # 正文取 annotated tag 自己的说明。
-          # · 不用 --notes-from-tag：它取的是 tag 指向的 commit 的 message，
-          #   不是 tag 对象的 message（实测取到了最后一个 commit 的说明）。
-          # · 也不能直接塞进 --notes：多行文本会被 shell 按空白拆成多个参数，
-          #   gh 会把第二行当成 flag 报 unknown shorthand flag。
-          # 所以落到临时文件，用 --notes-file 传。
+          # 正文来源有二，按优先级：
+          #   1) annotated tag 自己的 message（写 tag 时写的说明）
+          #   2) CHANGELOG.md 里对应版本的段落（回退）
+          #
+          # 为什么不用 --notes-from-tag：它取的是 tag 指向的 commit 的 message，
+          # 不是 tag 对象的 message。
+          # 为什么不能直接塞进 --notes：多行文本会被 shell 按空白拆成多个参数，
+          # gh 会把第二行当成 flag 报 unknown shorthand flag。
+          #
+          # 必须显式 fetch tag 对象：actions/checkout 在 tag 触发时建的是
+          # lightweight 引用，%(contents) 会退化成 commit message（实测踩过）。
+          git fetch --force --tags origin
+
           $notesFile = Join-Path $env:RUNNER_TEMP "release-notes.md"
-          git tag -l $tag --format='%(contents)' | Out-File -FilePath $notesFile -Encoding utf8
+          $tagType = (git cat-file -t $tag 2>$null).Trim()
+
+          if ($tagType -eq 'tag') {
+            git tag -l $tag --format='%(contents)' | Out-File -FilePath $notesFile -Encoding utf8
+            Write-Host "notes source: annotated tag ($tagType)"
+          } else {
+            # 回退：从 CHANGELOG 里取对应版本段
+            $raw = Get-Content "skillsmith/CHANGELOG.md" -Raw
+            $m = [regex]::Match($raw, "(?ms)^##\s+$([regex]::Escape($tag))\b(.*?)(?=^##\s|\z)")
+            if ($m.Success) {
+              $m.Groups[1].Value.Trim() | Out-File -FilePath $notesFile -Encoding utf8
+            } else {
+              $raw | Out-File -FilePath $notesFile -Encoding utf8
+            }
+            Write-Host "notes source: CHANGELOG (tag type was '$tagType')"
+          }
+
+          Write-Host "--- notes preview ---"
+          Get-Content $notesFile -TotalCount 3
 
           gh release create $tag `
             "skillsmith/electron/dist/*.exe" `

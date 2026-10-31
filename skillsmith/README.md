@@ -32,6 +32,8 @@ npm run dist        # 产物：dist/Skillsmith Setup 1.0.0.exe
 > `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 加速。
 > 注意镜像地址末尾**不能带 `v`** —— 版本号自带的 `v` 前缀由 electron 自己拼。
 
+版本记录见 [CHANGELOG.md](CHANGELOG.md)。
+
 推 tag（`v*`）会让 GitHub Actions 自动构建并发布 Release：
 
 ```bash
