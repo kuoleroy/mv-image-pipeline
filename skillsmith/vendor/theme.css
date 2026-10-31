@@ -1,0 +1,662 @@
+/**
+ * Skills 开关面板 —— 桌面版主题层
+ * ============================================================================
+ *
+ *  为什么要有这一层：
+ *
+ *  上游 skills-switch 的样式是「米色 + 珊瑚橘 + Cormorant 衬线标题」的
+ *  网页风浅色主题，放在浏览器标签页里尚可，作为桌面应用就显得单薄：
+ *  层级太平、卡片没有质感、开关是纯色圆角块、缺少焦点态与过渡细节。
+ *
+ *  但重写 React 组件会丢掉上游全部交互逻辑（多端归属过滤、批量操作、
+ *  乐观更新、删除确认弹窗…），那才是重复造轮子。
+ *
+ *  所以这里采用「样式层覆盖」：
+ *  上游编译产物用的是**语义化 Tailwind 类**（bg-canvas / text-ink /
+ *  bg-coral / border-hairline …），不是行内样式、也不是随机哈希类名。
+ *  这意味着可以直接在同名的类上重定义样式，把整套配色与质感换掉，
+ *  而 React 组件代码**一行都不用改**。
+ *
+ *  覆盖策略：用 `!important` 抢过 Tailwind 的优先级。Tailwind 工具类
+ *  只声明了 background-color / color / border-color 这些具体属性，
+ *  不会带 !important，所以覆盖是干净可控的。
+ *
+ *  设计方向：桌面级深色主题
+ *  · 深色画布 + 略微抬升的卡片，用边框和阴影而非边框分隔
+ *  · 主色从珊瑚橘换成更沉稳的琥珀 —— 在深色底上对比更干净，
+ *    且保留上游「暖色强调」的基因
+ *  · 开关做成有内阴影、有高光、有状态辉光的实体控件
+ *  · 补齐 focus-visible 焦点环（上游没有，键盘用户看不到焦点）
+ *  · 卡片 hover 抬升 + 左侧色条，扫描时能立刻定位
+ *
+ *  字体全部本地化（@font-face 指向 node_modules 拷贝出来的 woff2），
+ *  桌面版不能依赖 Google Fonts CDN —— 离线环境会掉字形。
+ *
+ * ============================================================================
+ */
+
+/* ───────────────────────────────── 字体（离线，不依赖 CDN） */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/inter-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/inter-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/inter-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/inter-latin-700-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+}
+
+/* ───────────────────────────────── 设计令牌 */
+
+:root {
+  --sw-canvas: #14161b;
+  --sw-canvas-deep: #0f1115;
+  --sw-panel: #191c23;
+  --sw-card: #1e222b;
+  --sw-card-hover: #232833;
+  --sw-line: #2b313d;
+  --sw-line-soft: #232833;
+
+  --sw-ink: #eef1f6;
+  --sw-muted: #9aa3b2;
+  --sw-muted-soft: #6b7484;
+
+  --sw-accent: #f0a34a;
+  --sw-accent-hover: #ffb35c;
+  --sw-accent-active: #d98d38;
+  --sw-accent-soft: rgba(240, 163, 74, 0.14);
+
+  --sw-off: #39414f;
+  --sw-error: #e56565;
+  --sw-error-soft: rgba(229, 101, 101, 0.1);
+
+  --sw-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.22);
+  --sw-shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(0, 0, 0, 0.32);
+  --sw-radius: 10px;
+
+  --sw-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ───────────────────────────────── 基础 */
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--sw-canvas);
+  color: var(--sw-ink);
+  /* 桌面应用不需要网页的 overscroll 回弹 */
+  overscroll-behavior: none;
+}
+
+/* 选中文本 */
+::selection {
+  background: var(--sw-accent-soft);
+  color: var(--sw-ink);
+}
+
+/* ───────────────────────────────── 语义类覆盖 */
+
+.bg-canvas {
+  background-color: var(--sw-canvas) !important;
+}
+
+.bg-surface-card {
+  background-color: var(--sw-card) !important;
+}
+
+.bg-surface-soft,
+.hover\:bg-surface-soft:hover {
+  background-color: var(--sw-card-hover) !important;
+}
+
+.text-ink {
+  color: var(--sw-ink) !important;
+}
+
+.text-muted {
+  color: var(--sw-muted) !important;
+}
+
+.text-muted-soft {
+  color: var(--sw-muted-soft) !important;
+}
+
+.text-coral {
+  color: var(--sw-accent) !important;
+}
+
+.text-error {
+  color: var(--sw-error) !important;
+}
+
+.hover\:text-error:hover {
+  color: var(--sw-error) !important;
+}
+
+.hover\:bg-error\/5:hover,
+.hover\:bg-error:hover {
+  background-color: var(--sw-error-soft) !important;
+}
+
+.bg-coral {
+  background-color: var(--sw-accent) !important;
+}
+
+.bg-coral:hover {
+  background-color: var(--sw-accent-hover) !important;
+}
+
+.bg-coral-active {
+  background-color: var(--sw-accent-active) !important;
+}
+
+.bg-hairline {
+  background-color: var(--sw-off) !important;
+}
+
+.border-hairline {
+  border-color: var(--sw-line) !important;
+}
+
+.border-hairline-soft {
+  border-color: var(--sw-line-soft) !important;
+}
+
+.hover\:border-hairline-soft:hover {
+  border-color: var(--sw-line) !important;
+}
+
+/* 标题字体：去掉 Cormorant 的古典衬线，换成 Inter 600 —— 更符合桌面工具气质 */
+.font-display {
+  font-family: 'Inter', 'Microsoft YaHei', 'PingFang SC', sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace !important;
+}
+
+/* ───────────────────────────────── 布局精修 */
+
+/* 侧边栏：略深，与主区拉开层次 */
+aside {
+  background-color: var(--sw-canvas-deep) !important;
+  border-right-color: var(--sw-line-soft) !important;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.015);
+}
+
+/* 顶部 Agent 标签栏 */
+main > .sw-tabbar {
+  background-color: var(--sw-canvas) !important;
+  border-bottom-color: var(--sw-line-soft) !important;
+  backdrop-filter: blur(12px);
+  -webkit-app-region: drag;
+}
+
+/* ───────────────────────────────── 窗口拖拽区
+ *
+ *  无边框窗口（titleBarStyle: 'hidden'）没有系统标题栏，
+ *  必须自己划出拖拽区，否则窗口拖不动。
+ *
+ *  之前只有标签栏是 drag 区，而标签栏里大半是按钮（no-drag），
+ *  实际能抓到的空隙很窄 —— 体验就是「不好拖动」。
+ *
+ *  现在把三块连成一条完整的可拖拽带：
+ *    · 面包屑行（正好在原生标题栏的高度上，最自然的抓手上）
+ *    · Agent 标签栏
+ *    · 侧边栏顶部的 logo 区（左上角，与面包屑同一水平线）
+ *  里面的按钮、输入框一律 no-drag，保证可点。
+ */
+.sw-crumb {
+  -webkit-app-region: drag;
+}
+
+.sw-crumb button,
+.sw-crumb-path {
+  -webkit-app-region: no-drag;
+}
+
+/* ───────────────────────────────── 移除侧栏标题块
+ *
+ *  窗口标题栏的位置已经交给面包屑了（共享技能 › 路径 › 技能数），
+ *  侧栏顶部再摆一遍「图标 + Skills 开关面板」是重复标识，
+ *  还占掉 68px 高度。所以整块隐藏，让 nav 上移。
+ */
+aside > div.sw-brand {
+  display: none !important;
+}
+
+/* 侧边栏顶部的菜单条样式在 app-menu.js 里（它负责创建这个元素），
+   这里只留品牌块的隐藏规则。 */
+
+/* 顶部标签的激活态：带琥珀底与描边 */
+main > .sw-tabbar button.bg-surface-card {
+  background-color: var(--sw-accent-soft) !important;
+  color: var(--sw-accent) !important;
+  box-shadow: inset 0 0 0 1px rgba(240, 163, 74, 0.28);
+}
+
+/* 标签按钮：默认加个透明边框，避免激活态切换时宽度跳动 */
+main > .sw-tabbar button {
+  border: 1px solid transparent;
+}
+
+/* 内容区：垂直节奏 */
+main > .sw-content {
+  padding: 20px 24px !important;
+}
+
+/* 卡片容器：解除上游 max-w-3xl 的窄限制，桌面窗口宽，用双列更合理 */
+main > .sw-content > div.space-y-3 {
+  max-width: none !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 12px;
+  align-items: stretch;   /* 等高：同一行卡片顶底对齐，不参差 */
+}
+
+/* grid 下 space-y-* 的 margin-top 会破坏行距，清掉 */
+main > .sw-content > div.space-y-3 > * {
+  margin-top: 0 !important;
+}
+
+/* ───────────────────────────────── 标题栏拖拽区 + 批量工具条 */
+
+/* 顶部条同时是窗口拖拽区 */
+main > .sw-tabbar {
+  -webkit-app-region: drag;
+  min-height: 44px;
+  position: relative;   /* 让工具条绝对定位的参照 */
+  flex-wrap: wrap;      /* 标签多时换行，而不是横向溢出 */
+  row-gap: 8px;
+  padding-bottom: 8px;
+}
+
+/* 标签容器允许换行显示全部 Agent —— 10 个标签横向排不下，
+   上游的 overflow-x-auto 会把「华为 CodeArts / 阿里 Qoder」挤出可视区。
+   桌面窗口够宽时换行更好：一眼看全所有端，不用横向滚动。 */
+main > .sw-tabbar > button {
+  flex: 0 0 auto;
+}
+
+/* 标签组右侧留白：只避让原生窗口控件（最小化/最大化/关闭）。
+   批量工具栏固定在内容区右上角，不参与这里的布局。 */
+main > .sw-tabbar > button:last-of-type {
+  margin-right: 96px;
+}
+
+/* 但其中的按钮要能点 */
+main > .sw-tabbar button,
+main > .sw-tabbar .sw-toolbar {
+  -webkit-app-region: no-drag;
+}
+
+/* 工具条容器。
+   放在侧边栏里 —— 侧边栏不随内容滚动，所以工具条永远不会被卡片盖住，
+   也不会跟着滚动跑掉。
+   （之前用 fixed 浮在内容区右上角，滚动时会压住第一行卡片，是错的。）
+   order: 999 保证即使 React 重排 DOM 子节点，视觉上仍在「全局」按钮下方。 */
+.sw-toolbar {
+  order: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sw-line-soft);
+}
+
+.sw-toolbar .sw-sep {
+  display: none;
+}
+
+.sw-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 1px solid var(--sw-line);
+  background: var(--sw-card);
+  color: var(--sw-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 0.16s var(--sw-ease), color 0.16s var(--sw-ease),
+    border-color 0.16s var(--sw-ease);
+}
+
+.sw-toolbar button:hover {
+  background: var(--sw-card-hover);
+  color: var(--sw-ink);
+  border-color: #3a4252;
+}
+
+.sw-toolbar button.sw-danger:hover {
+  background: var(--sw-error-soft);
+  border-color: rgba(229, 101, 101, 0.4);
+  color: var(--sw-error);
+}
+
+.sw-toolbar button.sw-accent {
+  background: var(--sw-accent-soft);
+  border-color: rgba(240, 163, 74, 0.3);
+  color: var(--sw-accent);
+}
+
+.sw-toolbar button.sw-accent:hover {
+  background: rgba(240, 163, 74, 0.22);
+  color: var(--sw-accent-hover);
+}
+
+/* 工具条与标签之间的分隔竖线（侧栏布局下已用 border-top 代替） */
+/* ───────────────────────────────── 侧栏细节 */
+
+/* 侧栏「添加项目」按钮 */
+aside button.w-full.flex.items-center {
+  color: var(--sw-muted) !important;
+}
+aside button.w-full.flex.items-center:hover {
+  background-color: var(--sw-card-hover) !important;
+  color: var(--sw-ink) !important;
+}
+
+/* 侧栏机制说明块：做成代码块质感 */
+aside > div:last-child {
+  background: rgba(0, 0, 0, 0.24);
+  border-radius: var(--sw-radius);
+  padding: 12px !important;
+  border: 1px solid var(--sw-line-soft);
+  margin: 10px 12px 14px;
+}
+
+aside > div:last-child p {
+  font-size: 11px !important;
+  line-height: 1.65 !important;
+  color: var(--sw-muted-soft) !important;
+}
+
+/* ───────────────────────────────── 技能卡片：核心视觉 */
+
+.space-y-3 > div.border {
+  position: relative;
+  background-color: var(--sw-card) !important;
+  border-color: var(--sw-line-soft) !important;
+  border-radius: var(--sw-radius) !important;
+  padding: 18px 20px !important;
+  box-shadow: var(--sw-shadow-card);
+  transition: transform 0.22s var(--sw-ease), box-shadow 0.22s var(--sw-ease),
+    border-color 0.22s var(--sw-ease), background-color 0.22s var(--sw-ease);
+}
+
+/* hover：抬升 + 描边提亮 + 左侧琥珀条 */
+.space-y-3 > div.border::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--sw-accent);
+  opacity: 0;
+  transform: scaleY(0.4);
+  transition: opacity 0.22s var(--sw-ease), transform 0.22s var(--sw-ease);
+}
+
+.space-y-3 > div.border:hover {
+  background-color: var(--sw-card-hover) !important;
+  border-color: var(--sw-line) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--sw-shadow-lift);
+}
+
+.space-y-3 > div.border:hover::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+
+/* 卡片标题 */
+.space-y-3 h3 {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--sw-ink) !important;
+  letter-spacing: -0.01em;
+}
+
+/* 卡片描述 */
+.space-y-3 h3 + p {
+  color: var(--sw-muted) !important;
+  font-size: 12.5px !important;
+  line-height: 1.6 !important;
+}
+
+/* 「Installed in ...」归属行 —— 做成等宽小字，像元数据 */
+.space-y-3 h3 + p + p {
+  font-family: 'JetBrains Mono', Consolas, monospace !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.01em;
+  color: var(--sw-muted-soft) !important;
+  padding-top: 10px;
+  margin-top: 12px !important;
+  border-top: 1px solid var(--sw-line-soft);
+}
+
+/* ───────────────────────────────── 卡片：网格下的适配 */
+
+/* 卡片内部改纵向 flex：左侧内容区伸展，右侧开关固定在顶部。
+   这样等高卡片里「Installed in ...」元信息行能贴着底部对齐。 */
+.space-y-3 > div.border {
+  display: flex;
+  flex-direction: column;
+}
+
+.space-y-3 > div.border > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+}
+
+/* 左侧文字块：标题+描述+元信息，纵向排列，元信息推到底部 */
+.space-y-3 > div.border > div:first-child > div:first-child {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+/* 元信息行：贴在卡片底部 */
+.space-y-3 h3 + p + p {
+  margin-top: auto !important;
+  padding-top: 10px;
+}
+
+/* ───────────────────────────────── 开关控件：做成实体开关 */
+
+/* 轨道 */
+button[role='switch'] {
+  width: 40px !important;
+  height: 22px !important;
+  border-radius: 999px !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background-color 0.24s var(--sw-ease), box-shadow 0.24s var(--sw-ease);
+}
+
+/* 开启态：琥珀渐变 + 外辉光 */
+button[role='switch'].bg-coral {
+  background-color: var(--sw-accent) !important;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0) 55%
+  ) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(240, 163, 74, 0.35), 0 0 14px rgba(240, 163, 74, 0.25);
+}
+
+/* 关闭态：更沉的灰 */
+button[role='switch'].bg-hairline {
+  background-color: var(--sw-off) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* 滑块 */
+button[role='switch'] > span {
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+  transition: transform 0.24s var(--sw-ease) !important;
+}
+
+/* 关闭态滑块略微压暗，避免在深灰上「发光」 */
+button[role='switch'].bg-hairline > span {
+  background: #cdd3dd !important;
+}
+
+/* 删除按钮 */
+button[title='Delete skill'] {
+  opacity: 0.55;
+  transition: opacity 0.18s var(--sw-ease), background-color 0.18s var(--sw-ease);
+}
+button[title='Delete skill']:hover {
+  opacity: 1;
+}
+
+/* ───────────────────────────────── 焦点态：上游没有，键盘用户看不到焦点 */
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--sw-accent) !important;
+  outline-offset: 2px !important;
+  border-radius: 6px;
+}
+
+/* 鼠标点击不显示焦点环（只有键盘导航才显示） */
+button:focus:not(:focus-visible) {
+  outline: none !important;
+}
+
+/* ───────────────────────────────── 滚动条：桌面应用该有的细滚动条 */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333a47;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #414a5a;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ───────────────────────────────── 弹窗 */
+
+[class*='fixed'] [role='dialog'],
+.fixed.inset-0 > div {
+  backdrop-filter: blur(6px);
+}
+
+/* 弹窗面板：抬升层级 */
+.fixed.inset-0 > div > div {
+  background-color: var(--sw-card) !important;
+  border: 1px solid var(--sw-line) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55) !important;
+}
+
+/* 弹窗按钮 */
+.bg-coral.text-white {
+  background-color: var(--sw-accent) !important;
+  color: #14161b !important;
+  font-weight: 600;
+}
+.bg-coral.text-white:hover {
+  background-color: var(--sw-accent-hover) !important;
+}
+
+/* ───────────────────────────────── 桌面版细节 */
+
+/* 右上角预留托盘/窗口控件空间时不需要，这里给顶部标签栏右侧留白 */
+main > .sw-tabbar {
+  padding-right: 92px !important;
+}
+
+/* 应用整体禁止文本误选（桌面应用观感），但描述区允许选中复制 */
+body {
+  user-select: none;
+}
+
+.space-y-3 p,
+aside p,
+aside span {
+  user-select: text;
+}

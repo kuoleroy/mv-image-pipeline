@@ -1,0 +1,44 @@
+{
+  "name": "skillsmith",
+  "version": "1.0.0",
+  "description": "Skillsmith —— 智能体技能管理软件（桌面版）",
+  "main": "main.js",
+  "author": "local",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "stage": "node stage.js",
+    "pack": "node stage.js && electron-builder --dir",
+    "dist": "node stage.js && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.local.skillsmith",
+    "productName": "Skillsmith",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Skillsmith"
+    }
+  }
+}
