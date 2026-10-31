@@ -3,9 +3,9 @@ REM Skillsmith（智能体技能管理软件）—— 浏览器版启动器
 REM 双击即可。会自动打开浏览器面板。
 
 setlocal
-REM 注意：这里不能用 %~dp0 —— 本文件可能在桌面等任意位置被调用，
-REM launcher.js 始终在项目目录里。
-set "DIR=C:/Users/admin/.agents/skills/mv-image-pipeline/skillsmith"
+REM 用 %~dp0（脚本自身所在目录）定位项目 —— 相对路径，可移植：
+REM 换机器、换用户名、换目录都不用改。
+set "DIR=%~dp0"
 
 REM 找 node：优先用 PATH 里的，其次用 WorkBuddy 自带的
 where node >nul 2>nul

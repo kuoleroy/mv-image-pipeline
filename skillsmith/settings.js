@@ -12,7 +12,7 @@
  *
  *  格式：
  *  {
- *    "canonRoot": "C:\\Users\\admin\\.agents\\skills"
+ *    "canonRoot": "C:\\Users\\<你的用户名>\\.agents\\skills"
  *  }
  *
  *  读取策略：

@@ -5,7 +5,7 @@
  *  面包屑位置：main 内、Agent 标签栏上方，独立一行。
  *
  *  显示内容：
- *    共享技能  ›  C:\Users\admin\.agents\skills  ›  [⚙ 设置]
+ *    共享技能  ›  C:\Users\<你的用户名>\.agents\skills  ›  [⚙ 设置]
  *
  *  为什么要有设置：
  *    真源地址原本硬编码 ~/.agents/skills。换了机器 / 换了用户名 /

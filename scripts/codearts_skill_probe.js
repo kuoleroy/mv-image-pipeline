@@ -6,8 +6,12 @@
 //   T_  = getActivatedSkills（filter !disabled）  <- prompt 注入用的就是这个
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
-const SKILLS_DIR = process.argv[2] || "C:/Users/admin/.codeartsdoer/skills";
+// 默认路径从用户主目录推导，不写死用户名 —— 这样仓库可以公开，
+// 别人 clone 下来改都不用改。
+const SKILLS_DIR =
+  process.argv[2] || path.join(os.homedir(), ".codeartsdoer", "skills");
 const STATUS_FILE = path.join(SKILLS_DIR, "UserSkillStatus.txt");
 
 // --- x_: readDisableSkillConfig ---
