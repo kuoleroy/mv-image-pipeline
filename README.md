@@ -176,6 +176,11 @@ python3 scripts/share_skills.py unlink mv-image-pipeline
 
 TeleAgent 的用户 ID 随账号变化，脚本用 glob 动态发现，不硬编码路径。
 
+> 同在 `.config/` 下的两个目录容易混淆：`~/.config/opencode/skills/`（OpenCode 本体）
+> 和 `~/.config/TeleAgent/users/<id>/skills/`（天翼 TeleAgent）——是两个不同的 Agent。
+> OpenCode 全机只有 `~/.config/opencode/skills/` 一个 skills 目录；
+> 它的 `.local/share/opencode/` 里没有 skills，不用管。
+
 **端专属 skill**：`browser-cli-skill` 依赖 TeleAgent 打包的 `tele_opencli` 运行时
 （`~/.local/share/TeleAgent/`），`codebase-crossrepo-pipeline` 依赖华为 CodeArts 工具链的
 `cb` / `codegraph` CLI —— 二者只在对应端有意义，因此只分发到那一端。
