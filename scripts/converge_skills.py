@@ -50,6 +50,7 @@ AGENT_DIRS = [
     ("Cline/Roo", "~/.cline/skills"),
     ("Amp/Replit/Universal", "~/.config/agents/skills"),
     ("华为 CodeArts Doer", "~/.codeartsdoer/skills"),
+    ("阿里 Qoder", "~/.qoder/skills"),
 ]
 
 # 天翼 TeleAgent：路径含用户 ID（v1_public_xxx），需动态发现而非硬编码。

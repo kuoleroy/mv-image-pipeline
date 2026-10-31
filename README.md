@@ -155,6 +155,7 @@ python3 scripts/share_skills.py unlink mv-image-pipeline
 | WorkBuddy 国际版 | `~/.workbuddy-ai/skills/` |
 | 天翼 TeleAgent | `~/.config/TeleAgent/users/<user_id>/skills/` |
 | 华为 CodeArts Doer | `~/.codeartsdoer/skills/` |
+| 阿里 Qoder | `~/.qoder/skills/` |
 | Claude Code | `~/.claude/skills/` |
 | Codex / Cursor / Copilot | `~/.agents/skills/` |
 | CodeBuddy | `~/.codebuddy/skills/` |
@@ -180,6 +181,9 @@ TeleAgent 的用户 ID 随账号变化，脚本用 glob 动态发现，不硬编
 > 和 `~/.config/TeleAgent/users/<id>/skills/`（天翼 TeleAgent）——是两个不同的 Agent。
 > OpenCode 全机只有 `~/.config/opencode/skills/` 一个 skills 目录；
 > 它的 `.local/share/opencode/` 里没有 skills，不用管。
+
+**插件托管的 skill 不归我们管**：Qoder 的插件 skill 在 `~/.qoder/plugins/cache/<来源>/<版本>/skills/`
+下，由 marketplace 管理，市场更新会整包替换。本脚本只碰 `~/.qoder/skills/`（用户级），两者互不干扰。
 
 **端专属 skill**：`browser-cli-skill` 依赖 TeleAgent 打包的 `tele_opencli` 运行时
 （`~/.local/share/TeleAgent/`），`codebase-crossrepo-pipeline` 依赖华为 CodeArts 工具链的

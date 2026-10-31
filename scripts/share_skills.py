@@ -51,6 +51,7 @@ AGENT_DIRS = [
     ("Cline/Roo", "~/.cline/skills"),
     ("Amp/Replit/Universal", "~/.config/agents/skills"),
     ("华为 CodeArts Doer", "~/.codeartsdoer/skills"),
+    ("阿里 Qoder", "~/.qoder/skills"),
 ]
 
 CANON_ROOT = os.path.expanduser("~/.agents/skills")
