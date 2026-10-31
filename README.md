@@ -154,6 +154,7 @@ python3 scripts/share_skills.py unlink mv-image-pipeline
 | WorkBuddy | `~/.workbuddy/skills/` |
 | WorkBuddy 国际版 | `~/.workbuddy-ai/skills/` |
 | 天翼 TeleAgent | `~/.config/TeleAgent/users/<user_id>/skills/` |
+| 华为 CodeArts Doer | `~/.codeartsdoer/skills/` |
 | Claude Code | `~/.claude/skills/` |
 | Codex / Cursor / Copilot | `~/.agents/skills/` |
 | CodeBuddy | `~/.codebuddy/skills/` |
@@ -176,7 +177,8 @@ python3 scripts/share_skills.py unlink mv-image-pipeline
 TeleAgent 的用户 ID 随账号变化，脚本用 glob 动态发现，不硬编码路径。
 
 **端专属 skill**：`browser-cli-skill` 依赖 TeleAgent 打包的 `tele_opencli` 运行时
-（`~/.local/share/TeleAgent/`），在其他端跑不起来，因此只分发到 TeleAgent 端。
+（`~/.local/share/TeleAgent/`），`codebase-crossrepo-pipeline` 依赖华为 CodeArts 工具链的
+`cb` / `codegraph` CLI —— 二者只在对应端有意义，因此只分发到那一端。
 
 
 > 另一个跨端方案是 Vercel 的 `npx skills add <repo>`：一条命令装到 75+ 个 Agent，

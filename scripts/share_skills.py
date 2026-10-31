@@ -50,6 +50,7 @@ AGENT_DIRS = [
     ("Kiro", "~/.kiro/skills"),
     ("Cline/Roo", "~/.cline/skills"),
     ("Amp/Replit/Universal", "~/.config/agents/skills"),
+    ("华为 CodeArts Doer", "~/.codeartsdoer/skills"),
 ]
 
 CANON_ROOT = os.path.expanduser("~/.agents/skills")

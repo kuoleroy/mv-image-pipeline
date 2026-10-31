@@ -202,9 +202,9 @@ python scripts/share_skills.py status mv-image-pipeline # 看分发状态
 
 Windows 上 `~/.workbuddy` 不允许 symlink，必须用 NTFS junction（目录联接），脚本已自动处理。WorkBuddy 不在 Vercel `npx skills` 的官方 Agent 列表里，所以用自带脚本更直接。
 
-各端 skills 路径：WorkBuddy `~/.workbuddy/skills/`、WorkBuddy 国际版 `~/.workbuddy-ai/skills/`、天翼 TeleAgent `~/.config/TeleAgent/users/<user_id>/skills/`（用户 ID 会变，脚本用 glob 动态发现）、Claude Code `~/.claude/skills/`、Codex/Cursor/Copilot `~/.agents/skills/`、CodeBuddy `~/.codebuddy/skills/`、OpenCode `~/.config/opencode/skills/`。以 `_` 开头的目录（如 `_template/`）是脚手架不是 skill，收敛脚本会自动跳过。
+各端 skills 路径：WorkBuddy `~/.workbuddy/skills/`、WorkBuddy 国际版 `~/.workbuddy-ai/skills/`、天翼 TeleAgent `~/.config/TeleAgent/users/<user_id>/skills/`（用户 ID 会变，脚本用 glob 动态发现）、华为 CodeArts Doer `~/.codeartsdoer/skills/`、Claude Code `~/.claude/skills/`、Codex/Cursor/Copilot `~/.agents/skills/`、CodeBuddy `~/.codebuddy/skills/`、OpenCode `~/.config/opencode/skills/`。以 `_` 开头的目录（如 `_template/`）是脚手架不是 skill，收敛脚本会自动跳过。
 
-三类 skill 不搬动：含 `_skillhub_meta.json` 的 skillhub 托管项、名字在 TeleAgent 安装包 `resources/skills/buildin-meta.json` 里的内置项（由服务端同步更新）、以及依赖特定运行时的端专属项（`browser-cli-skill` 只留 TeleAgent）。
+三类 skill 不搬动：含 `_skillhub_meta.json` 的 skillhub 托管项、名字在 TeleAgent 安装包 `resources/skills/buildin-meta.json` 里的内置项（由服务端同步更新）、以及依赖特定运行时的端专属项（`browser-cli-skill` 只留 TeleAgent，`codebase-crossrepo-pipeline` 只留 CodeArts）。
 
 #### 各端现场写 skill 后如何收敛
 

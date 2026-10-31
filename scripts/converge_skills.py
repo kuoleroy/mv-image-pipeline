@@ -49,6 +49,7 @@ AGENT_DIRS = [
     ("Kiro", "~/.kiro/skills"),
     ("Cline/Roo", "~/.cline/skills"),
     ("Amp/Replit/Universal", "~/.config/agents/skills"),
+    ("华为 CodeArts Doer", "~/.codeartsdoer/skills"),
 ]
 
 # 天翼 TeleAgent：路径含用户 ID（v1_public_xxx），需动态发现而非硬编码。
@@ -215,8 +216,11 @@ def is_teleagent_builtin(agent, name):
 # 只在特定端生效的 skill：依赖该端专有运行时。
 # browser-cli-skill 依赖 TeleAgent 打包的 tele_opencli 与浏览器扩展
 # （~/.local/share/TeleAgent/），在其他端跑不起来。
+# codebase-crossrepo-pipeline 依赖华为 CodeArts 工具链的 cb / codegraph CLI，
+# 这两个二进制本机并未安装，只在 CodeArts 端有意义。
 AGENT_ONLY_SKILLS = {
     "browser-cli-skill": ("TeleAgent",),
+    "codebase-crossrepo-pipeline": ("华为 CodeArts",),
 }
 
 
