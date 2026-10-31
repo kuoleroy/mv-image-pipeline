@@ -202,6 +202,29 @@ python scripts/share_skills.py status mv-image-pipeline # 看分发状态
 
 Windows 上 `~/.workbuddy` 不允许 symlink，必须用 NTFS junction（目录联接），脚本已自动处理。WorkBuddy 不在 Vercel `npx skills` 的官方 Agent 列表里，所以用自带脚本更直接。
 
+#### 各端现场写 skill 后如何收敛
+
+Skill 常常是在某个 Agent 会话里现场写出来的（Claude Code 写个 review skill、CodeBuddy 写个 deploy skill），此时它只存在于那一个端。用 `converge_skills.py` 收拢：
+
+```bash
+python scripts/converge_skills.py collect          # 试运行：列出将要收拢的 skill
+python scripts/converge_skills.py collect --apply  # 真正执行
+python scripts/converge_skills.py link --apply     # 分发到所有已装 Agent
+python scripts/converge_skills.py status           # 看收敛与分发状态
+```
+
+规则：
+
+| 情况 | 处理 |
+|---|---|
+| 各端各建了不同 skill | 全部收拢到真源，再软链分发回各端 |
+| 多端同名、内容不同 | 取 mtime 新的做真源，其余备份为 `<name>.conflict-<agent>`，**不静默丢弃** |
+| 含 `_skillhub_meta.json` | **跳过**，不搬动 —— marketplace 更新机制依赖其中的绝对路径 |
+| 真源新建了 skill | junction 只映射已存在的目录，**必须重跑 `link`** 才会补建链接 |
+| 真源删除了 skill | 重跑 `link` 会自动清理各端的孤儿链接 |
+
+默认 dry-run，加 `--apply` 才写盘。
+
 ## 平台交付
 
 | 平台 | 规格 | 关键点 |
