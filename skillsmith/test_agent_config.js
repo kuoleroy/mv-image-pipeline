@@ -118,7 +118,47 @@ check('状态清单没被内置默认值覆盖',
   (list.find(a => a.id === 'trae-intl').statusFile || '').includes('Trae'),
   list.find(a => a.id === 'trae-intl').statusFile);
 
-console.log('\n=== 13. 损坏配置不崩 ===');
+console.log('\n=== 13. 不支持的客户端：TeleAgent 被拒绝接入 ===');
+cfg.resetAgents();
+let r = cfg.saveAgent({ id: 'teleagent', name: 'TeleAgent',
+  dir: '~/.config/TeleAgent/users/v1_public_x/skills', mode: 'junction' });
+check('保存被拒绝', r.ok === false, r);
+check('带明确原因', typeof r.message === 'string' && r.message.includes('TeleAgent'), r.message);
+check('配置里没写进去', !fs.existsSync(CFG_FILE) ||
+  !fs.readFileSync(CFG_FILE, 'utf8').includes('TeleAgent'),
+  fs.existsSync(CFG_FILE) ? fs.readFileSync(CFG_FILE, 'utf8') : null);
+
+console.log('\n=== 14. 不支持的客户端：其它路径形式也拦 ===');
+for (const p of [
+  'C:/Program Files/TeleAgent/resources/skills',
+  '~/.local/share/TeleAgent/users/v1_public_x/skills',
+  '~/.config/TeleAgent/users/v1_public_x/skills',
+]) {
+  const res = cfg.saveAgent({ id: 'probe', name: '探针', dir: p, mode: 'junction' });
+  check('拦下：' + p, res.ok === false, res);
+}
+
+console.log('\n=== 15. 不支持的客户端：手工改配置也进不了生效映射 ===');
+// 绕过保存接口，直接往配置里塞一条 TeleAgent 路径
+fs.mkdirSync(path.dirname(CFG_FILE), { recursive: true });
+fs.writeFileSync(CFG_FILE, JSON.stringify({
+  version: 1,
+  agents: [{ id: 'tele', name: 'TeleAgent 手改',
+    dir: '~/.config/TeleAgent/users/v1_public_x/skills', mode: 'junction' }],
+}, null, 2), 'utf8');
+const map = cfg.agentsMap();
+check('生效映射里没有它', !('TeleAgent 手改' in map), Object.keys(map));
+check('listAgents 里标了不支持',
+  cfg.listAgents().find(a => a.id === 'tele').unsupported === 'teleagent',
+  cfg.listAgents().find(a => a.id === 'tele').unsupported);
+
+console.log('\n=== 16. 正常端不受影响 ===');
+cfg.resetAgents();
+const okRes = cfg.saveAgent({ id: 'zed2', name: 'Zed 二号', dir: '~/.zed2/skills', mode: 'junction' });
+check('普通端仍可保存', okRes.ok === true, okRes);
+check('普通端进了生效映射', 'Zed 二号' in cfg.agentsMap());
+
+console.log('\n=== 17. 损坏配置不崩 ===');
 fs.mkdirSync(path.dirname(CFG_FILE), { recursive: true });
 fs.writeFileSync(CFG_FILE, '{ 这不是合法 JSON', 'utf8');
 let crashed = false;

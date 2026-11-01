@@ -163,6 +163,29 @@ CodeArts 是特例：它用 `readdir` 过滤掉符号链接，**只认真实目�
 **客户端没装也能先配**：填好目录后开关会自动创建该目录，客户端装好后直接生效；
 路径不对就改路径框，客户端不在了就停用或删掉这一行。
 
+#### 不支持接入的客户端：TeleAgent
+
+它的技能开关**不是**「目录里有/没有」决定的：
+
+```
+~/.config/TeleAgent/users/<uid>/skills/          ← 技能目录
+~/.config/TeleAgent/users/<uid>/TeleAgent.jsonc   ← 真正管开关的地方（permission.skill 白名单）
+    └── .disabled.json / .usage.json              ← 状态与用量
+```
+
+摘掉目录链接它照样认（`.usage.json` 里还有记录），写 `.disabled.json` 又会被它自己的
+云端同步覆盖；它的权限条目还带 `serverId` / `versionId` 的版本管理，外来工具插一脚
+只会和它的同步逻辑打架。
+
+所以本工具**不接、也不让误接**：
+
+- 保存端时若路径命中 TeleAgent，直接拒绝并说明原因
+- 即便有人手工改 `agents.json` 塞进 TeleAgent 路径，它也不会进生效映射 ——
+  开关 / 批量 / 重新绑定一律不碰它
+- 面板上会标「不支持」
+
+要开关 TeleAgent 的技能，去它自己的面板里点。
+
 配置持久化在：
 
 ```

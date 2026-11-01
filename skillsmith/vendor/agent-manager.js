@@ -201,7 +201,10 @@
       body: JSON.stringify({ action, agent }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
+    const r = await res.json();
+    // 后端可能用 200 + {ok:false,message} 拒绝（比如命中不支持名单）
+    if (r && r.ok === false) throw new Error(r.message || '操作被拒绝');
+    return r;
   }
 
   // ──────────────────────────────────────────── 面板
@@ -307,6 +310,16 @@
       '· 客户端装在非默认位置：改上面的路径框，⚙ 里可改状态清单位置与机制\n' +
       '· 删除内置端会写入 remove 标记，恢复默认即可撤销')).style.cssText =
       'font-size:11.5px;line-height:1.75;color:#6b7484;white-space:pre-wrap;';
+
+    const warnBox = el('div', null,
+      '不支持接入：TeleAgent\n' +
+      '它的技能开关由自己的 permission.skill 白名单决定，摘目录链接对它无效，\n' +
+      '硬接只会和它的云端同步打架。请直接在 TeleAgent 自己的面板里开关。');
+    warnBox.style.cssText =
+      'font-size:11.5px;line-height:1.75;color:#e56565;white-space:pre-wrap;'
+      + 'margin-top:10px;padding:9px 11px;border:1px solid rgba(229,101,101,.3);'
+      + 'border-radius:9px;background:rgba(229,101,101,.06);';
+    body.appendChild(warnBox);
   }
 
   function agentRow(a) {
@@ -327,6 +340,11 @@
       missTag.title = '该端默认目录下没有 skills 目录 —— 客户端可能没装，'
         + '或者装在了别处（改上面的路径框即可）';
       nameRow.appendChild(missTag);
+    }
+    if (a.unsupported) {
+      const unTag = el('span', 'sw-tag missing', '不支持');
+      unTag.title = a.unsupportedReason || '该客户端的技能开关机制与本工具不兼容';
+      nameRow.appendChild(unTag);
     }
     if (a.enabled === false) nameRow.appendChild(el('span', 'sw-tag missing', '已停用'));
     main.appendChild(nameRow);
@@ -404,8 +422,12 @@
     toggle.textContent = a.enabled === false ? '○' : '●';
     toggle.title = a.enabled === false ? '启用该端' : '停用该端（不显示、不参与批量操作）';
     toggle.onclick = async () => {
-      await api('save', collect(a, true));
-      toast(a.enabled === false ? '已启用 ' + a.name : '已停用 ' + a.name, 'ok');
+      try {
+        await api('save', collect(a, true));
+        toast(a.enabled === false ? '已启用 ' + a.name : '已停用 ' + a.name, 'ok');
+      } catch (e) {
+        toast(e.message, 'err');
+      }
       await refresh();
     };
     acts.appendChild(toggle);
@@ -414,8 +436,12 @@
     const save = el('button', 'sw-btn icon', '✓');
     save.title = '保存名称、路径、机制与状态清单';
     save.onclick = async () => {
-      await api('save', collect(a, false));
-      toast('已保存', 'ok');
+      try {
+        await api('save', collect(a, false));
+        toast('已保存', 'ok');
+      } catch (e) {
+        toast(e.message, 'err');
+      }
       await refresh();
     };
     acts.appendChild(save);

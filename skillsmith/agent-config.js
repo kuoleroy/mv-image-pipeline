@@ -135,6 +135,61 @@ const BUILTIN_AGENTS = [
   },
 ];
 
+// ---------------------------------------------------------------- 不支持的端
+
+/**
+ * 明确不支持的客户端（黑名单）。
+ *
+ * 为什么它们不能像别的端一样接进来：
+ *   多数客户端是「目录里有这个技能 / 没有这个技能」来决定是否加载，
+ *   所以摘掉 junction 就等于关闭 —— 我们这套开关模型直接成立。
+ *
+ *   但下面这些客户端不是这么工作的：
+ *     · TeleAgent —— 技能放在 ~/.config/TeleAgent/users/<uid>/skills/，
+ *       真正决定「开不开」的是 ~/.config/TeleAgent/users/<uid>/TeleAgent.jsonc
+ *       里的 permission.skill 白名单，外加同目录的 .disabled.json / .usage.json。
+ *       摘掉目录链接它照样认（因为还有 .usage.json 里的记录），
+ *       反过来写 .disabled.json 又会被它自己的同步覆盖。
+ *       它的权限清单还带 serverId / versionId 的云端版本管理，
+ *       外来工具插一脚只会和它的同步逻辑打架 —— 实测已经见过
+ *       jsonc 里的 skill 白名单被改得七零八落。
+ *     · 同类的还有「自带作用域、需要拖进它的 API 才识别」的客户端
+ *       （各家自带的 skills 面板，机制各异、不公开）。
+ *
+ *   所以：不接、也不让用户误接。
+ *   真要开关，去它自己的面板里点。
+ */
+const UNSUPPORTED = [
+  {
+    id: 'teleagent',
+    name: 'TeleAgent',
+    // 路径里出现这些片段就判定为它
+    patterns: [
+      /[\\/]\.config[\\/]TeleAgent([\\/]|$)/i,
+      /[\\/]\.local[\\/]share[\\/]TeleAgent([\\/]|$)/i,
+      /[\\/]TeleAgent([\\/]|$)/i,
+    ],
+    reason: 'TeleAgent 的技能开关由它自己的 permission.skill 白名单决定，'
+      + '摘目录链接对它无效。请直接在 TeleAgent 自己的面板里开关。',
+  },
+];
+
+/**
+ * 该路径是否命中不支持名单。
+ * @param {string} p 待查路径
+ * @returns {object|null} 命中的条目
+ */
+function hitUnsupported(p) {
+  if (!p) return null;
+  const s = String(p);
+  for (const u of UNSUPPORTED) {
+    for (const re of u.patterns) {
+      if (re.test(s)) return u;
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------- 读配置
 
 function readUserConfig() {
@@ -246,15 +301,23 @@ function merged() {
 
 /** 当前生效的全部端（合并后） */
 function listAgents() {
-  return merged().map((a) => ({
-    ...a,
-    // dir 允许写 ~ 开头，展开成绝对路径
-    dir: expandHome(a.dir),
-    statusFile: a.statusFile ? expandHome(a.statusFile) : undefined,
-    enabled: a.enabled !== false,
-    hidden: a.hidden === true,
-    installed: fs.existsSync(expandHome(a.dir)),
-  }));
+  return merged().map((a) => {
+    const dir = expandHome(a.dir);
+    const statusFile = a.statusFile ? expandHome(a.statusFile) : undefined;
+    const hit = hitUnsupported(dir) || hitUnsupported(statusFile);
+    return {
+      ...a,
+      // dir 允许写 ~ 开头，展开成绝对路径
+      dir,
+      statusFile,
+      enabled: a.enabled !== false,
+      hidden: a.hidden === true,
+      installed: fs.existsSync(dir),
+      // 命中黑名单：面板上标出来，并且不参与任何写操作
+      unsupported: hit ? hit.id : null,
+      unsupportedReason: hit ? hit.reason : null,
+    };
+  });
 }
 
 /**
@@ -273,6 +336,9 @@ function agentsMap() {
   const out = {};
   for (const a of listAgents()) {
     if (!a.enabled || a.hidden) continue;
+    // 最后一道闸：即便配置被手工改过（agents.json 里塞了 TeleAgent 路径），
+    // 也不把它放进生效映射 —— 这样 core 的开关/批量/重绑都不会碰它。
+    if (hitUnsupported(a.dir) || hitUnsupported(a.statusFile)) continue;
     out[a.name] = {
       dir: a.dir,
       mode: a.mode,
@@ -308,6 +374,18 @@ function expandHome(p) {
 function saveAgent(data, remove) {
   const user = readUserConfig();
   const isBuiltin = BUILTIN_AGENTS.some((b) => b.id === data.id);
+
+  // 黑名单拦截：只拦「新增/修改」，删除条目是安全操作，放行。
+  if (!remove) {
+    const hit = hitUnsupported(data.dir) || hitUnsupported(data.statusFile);
+    if (hit) {
+      return {
+        ok: false,
+        unsupported: hit.id,
+        message: hit.reason,
+      };
+    }
+  }
 
   if (remove) {
     // 内置端：程序下次启动会被合并逻辑补回来，所以必须写 remove 标记。
@@ -360,6 +438,7 @@ function resetAgents() {
 
 module.exports = {
   BUILTIN_AGENTS,
+  UNSUPPORTED,
   CONFIG_FILE,
   listAgents,
   agentsMap,
@@ -368,4 +447,5 @@ module.exports = {
   readUserConfig,
   mergeAll,
   expandHome,
+  hitUnsupported,
 };
