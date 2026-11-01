@@ -123,7 +123,12 @@ for (const d of DIRS) {
 }
 
 // ── 清理真源里不该有的东西 ──────────────────────────────────────
-const JUNK = ['.git', 'skillsmith', 'node_modules', 'dist', 'build', 'app'];
+//  真源是可分发产物：只留技能内容，仓库配置与开发工具都要清掉。
+const JUNK = [
+  '.git', '.github', '.gitattributes', '.gitignore',
+  'skillsmith', 'node_modules', 'dist', 'build', 'app',
+  '__pycache__',
+];
 for (const j of JUNK) {
   const p = path.join(TARGET, j);
   if (!fs.existsSync(p)) continue;
