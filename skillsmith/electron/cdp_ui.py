@@ -13,9 +13,11 @@ ACTION = sys.argv[1] if len(sys.argv) > 1 else 'shot'
 
 
 def fetch_targets():
-    out = subprocess.run(['curl', '-s', '-m', '8', f'http://127.0.0.1:{PORT}/json/list'],
-                         capture_output=True, text=True).stdout
-    return json.loads(out)
+    # 用 urllib 直连本机端口，绕开环境里的 HTTP(S)_PROXY —— 否则子进程 curl 会被代理吞掉
+    import urllib.request
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(f"http://127.0.0.1:{PORT}/json/list", timeout=8) as r:
+        return json.loads(r.read().decode('utf-8'))
 
 
 class WS:

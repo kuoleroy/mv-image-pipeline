@@ -78,7 +78,47 @@ check('路径已覆盖', list.find(a => a.id === 'claude-code').dir.endsWith('sk
   list.find(a => a.id === 'claude-code').dir);
 check('仍标记为内置', list.find(a => a.id === 'claude-code').builtin === true);
 
-console.log('\n=== 9. 损坏配置不崩 ===');
+console.log('\n=== 9. 改内置端机制（junction → realdir）===');
+cfg.resetAgents();
+cfg.saveAgent({ id: 'codearts', name: '华为 CodeArts', dir: '~/.codeartsdoer/skills',
+  mode: 'realdir', statusFile: '~/.codeartsdoer/skills/UserSkillStatus.txt',
+  statusKind: 'kv_lines' });
+list = cfg.listAgents();
+check('机制已改为 realdir', list.find(a => a.id === 'codearts').mode === 'realdir');
+check('状态清单格式保留', list.find(a => a.id === 'codearts').statusKind === 'kv_lines');
+
+console.log('\n=== 10. 改内置端的状态清单位置（客户端装在别的盘）===');
+cfg.saveAgent({ id: 'trae-intl', name: 'Trae 国际版', dir: 'D:/Trae/skills',
+  mode: 'junction', statusFile: 'D:/Trae/skill-config.json',
+  statusKind: 'json_array', statusKey: 'disabledSkills' });
+list = cfg.listAgents();
+const traeIntl = list.find(a => a.id === 'trae-intl');
+check('技能目录已改', traeIntl.dir.endsWith('Trae/skills') || traeIntl.dir.endsWith('Trae\\skills'), traeIntl.dir);
+check('状态清单已改到新位置', (traeIntl.statusFile || '').includes('Trae'), traeIntl.statusFile);
+
+console.log('\n=== 11. 清空内置端的状态清单 ===');
+cfg.saveAgent({ id: 'trae-intl', name: 'Trae 国际版', dir: 'D:/Trae/skills',
+  mode: 'junction', statusFile: '', statusKind: '', statusKey: '' });
+list = cfg.listAgents();
+check('状态清单已清空', !list.find(a => a.id === 'trae-intl').statusFile,
+  list.find(a => a.id === 'trae-intl').statusFile);
+check('清空后仍保留自定义路径', list.find(a => a.id === 'trae-intl').dir.includes('Trae'));
+
+console.log('\n=== 12. 停用端不会丢掉自定义的状态清单 ===');
+cfg.saveAgent({ id: 'trae-intl', name: 'Trae 国际版', dir: 'D:/Trae/skills',
+  mode: 'junction', statusFile: 'D:/Trae/skill-config.json',
+  statusKind: 'json_array', statusKey: 'disabledSkills' });
+// 模拟界面上的「停用」按钮：只改 enabled，其余字段原样带回
+cfg.saveAgent({ id: 'trae-intl', name: 'Trae 国际版', dir: 'D:/Trae/skills',
+  mode: 'junction', enabled: false, statusFile: 'D:/Trae/skill-config.json',
+  statusKind: 'json_array', statusKey: 'disabledSkills' });
+list = cfg.listAgents();
+check('端已停用', list.find(a => a.id === 'trae-intl').enabled === false);
+check('状态清单没被内置默认值覆盖',
+  (list.find(a => a.id === 'trae-intl').statusFile || '').includes('Trae'),
+  list.find(a => a.id === 'trae-intl').statusFile);
+
+console.log('\n=== 13. 损坏配置不崩 ===');
 fs.mkdirSync(path.dirname(CFG_FILE), { recursive: true });
 fs.writeFileSync(CFG_FILE, '{ 这不是合法 JSON', 'utf8');
 let crashed = false;

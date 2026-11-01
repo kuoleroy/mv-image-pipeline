@@ -19,3 +19,6 @@ skillsmith/electron/*.log
 *.orig
 *.old
 *.rej
+
+# Skillsmith 桌面调试截图（临时产物）
+skillsmith/electron/*.png

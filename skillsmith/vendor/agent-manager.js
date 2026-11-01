@@ -120,6 +120,32 @@
   font-size:10.5px; font-family:'JetBrains Mono',Consolas,monospace;
   color:#6b7484; padding:3px 7px; border-radius:5px; background:#14161b; border:1px solid #262c37;
 }
+/* 机制下拉（可改） */
+.sw-ag-mode-sel {
+  height:30px; padding:0 6px; border-radius:6px; cursor:pointer;
+  background:#14161b; border:1px solid #262c37; color:#6b7484;
+  font-family:'JetBrains Mono',Consolas,monospace; font-size:10.5px; outline:none;
+}
+.sw-ag-mode-sel:focus { border-color:#f0a34a; color:#eef1f6; }
+/* 高级：状态清单 */
+.sw-ag-adv { margin-top:7px; display:flex; flex-direction:column; gap:6px; }
+.sw-ag-adv-label {
+  font-size:10px; letter-spacing:.05em; text-transform:uppercase;
+  color:#6b7484; font-weight:600;
+}
+.sw-ag-adv-row { display:grid; grid-template-columns:1fr 128px 108px; gap:6px; }
+.sw-ag-adv-row input {
+  width:100%; height:26px; background:#14161b; border:1px solid #2b313d; border-radius:6px;
+  color:#9aa3b2; font-family:'JetBrains Mono',Consolas,monospace; font-size:11px;
+  padding:4px 8px; outline:none;
+}
+.sw-ag-adv-row input:focus { border-color:#f0a34a; color:#eef1f6; }
+.sw-ag-adv-row select {
+  height:26px; padding:0 6px; border-radius:6px; cursor:pointer;
+  background:#14161b; border:1px solid #2b313d; color:#9aa3b2;
+  font-family:'JetBrains Mono',Consolas,monospace; font-size:10.5px; outline:none;
+}
+.sw-ag-adv-hint { font-size:10.5px; color:#5d6575; }
 .sw-sect-title {
   font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
   color:#6b7484; margin:18px 0 9px;
@@ -277,6 +303,8 @@
     body.appendChild(el('div', null,
       '· 「junction」模式：目录里放指向共享真源的目录联接，摘掉即关闭（绝大多数工具）\n' +
       '· 「realdir」模式：目录里放真实副本，开关走工具自己的状态清单（如 CodeArts）\n' +
+      '· 客户端没装也能先填目录：开关时软件会自动创建目录，客户端装好后直接生效\n' +
+      '· 客户端装在非默认位置：改上面的路径框，⚙ 里可改状态清单位置与机制\n' +
       '· 删除内置端会写入 remove 标记，恢复默认即可撤销')).style.cssText =
       'font-size:11.5px;line-height:1.75;color:#6b7484;white-space:pre-wrap;';
   }
@@ -294,7 +322,12 @@
     nameRow.appendChild(nameInput);
     nameRow.appendChild(el('span', 'sw-tag ' + (a.builtin ? 'builtin' : 'custom'),
       a.builtin ? '内置' : '自定义'));
-    if (!a.installed) nameRow.appendChild(el('span', 'sw-tag missing', '未安装'));
+    if (!a.installed) {
+      const missTag = el('span', 'sw-tag missing', '未找到');
+      missTag.title = '该端默认目录下没有 skills 目录 —— 客户端可能没装，'
+        + '或者装在了别处（改上面的路径框即可）';
+      nameRow.appendChild(missTag);
+    }
     if (a.enabled === false) nameRow.appendChild(el('span', 'sw-tag missing', '已停用'));
     main.appendChild(nameRow);
 
@@ -303,34 +336,85 @@
     const dirInput = el('input');
     dirInput.value = a.dir;
     dirInput.spellcheck = false;
+    dirInput.title = a.dir;
     dirRow.appendChild(dirInput);
     main.appendChild(dirRow);
+
+    // 高级区：状态清单文件（客户端装在非默认位置时需要改）
+    const adv = el('div', 'sw-ag-adv');
+    adv.style.display = a.statusFile ? '' : 'none';
+    adv.appendChild(el('div', 'sw-ag-adv-label', '状态清单（该客户端自己的开关记录）'));
+
+    const advRow = el('div', 'sw-ag-adv-row');
+    const statusInput = el('input');
+    statusInput.value = a.statusFile || '';
+    statusInput.placeholder = '留空 = 没有状态清单';
+    statusInput.spellcheck = false;
+    statusInput.title = a.statusFile || '';
+
+    const kindSel = el('select');
+    const k1 = el('option', null, 'json 数组');
+    k1.value = 'json_array';
+    const k2 = el('option', null, 'key=value 行');
+    k2.value = 'kv_lines';
+    kindSel.appendChild(k1);
+    kindSel.appendChild(k2);
+    kindSel.value = a.statusKind || 'json_array';
+
+    const keyInput = el('input');
+    keyInput.value = a.statusKey || '';
+    keyInput.placeholder = '字段名';
+    keyInput.spellcheck = false;
+
+    advRow.appendChild(statusInput);
+    advRow.appendChild(kindSel);
+    advRow.appendChild(keyInput);
+    adv.appendChild(advRow);
+    adv.appendChild(el('div', 'sw-ag-adv-hint',
+      '留空 = 只靠目录联接开关。客户端装在别的盘时，技能目录与状态清单要改成对应路径。'));
+    main.appendChild(adv);
 
     row.appendChild(main);
 
     // 操作
     const acts = el('div', 'sw-ag-acts');
-    acts.appendChild(el('span', 'sw-ag-mode', a.mode));
 
-    // 启用/停用开关
+    // 开关机制（可改 —— 不确定就 junction）
+    const modeSel = el('select', 'sw-ag-mode-sel');
+    const m1 = el('option', null, 'junction');
+    m1.value = 'junction';
+    const m2 = el('option', null, 'realdir');
+    m2.value = 'realdir';
+    modeSel.appendChild(m1);
+    modeSel.appendChild(m2);
+    modeSel.value = a.mode || 'junction';
+    modeSel.title = '开关机制：junction = 目录联接；realdir = 真实副本 + 状态清单';
+    acts.appendChild(modeSel);
+
+    // 展开/收起状态清单
+    const advBtn = el('button', 'sw-btn icon', '⚙');
+    advBtn.title = '状态清单设置';
+    advBtn.onclick = () => {
+      adv.style.display = adv.style.display === 'none' ? '' : 'none';
+    };
+    acts.appendChild(advBtn);
+
+    // 启停开关
     const toggle = el('button', 'sw-btn icon');
     toggle.textContent = a.enabled === false ? '○' : '●';
     toggle.title = a.enabled === false ? '启用该端' : '停用该端（不显示、不参与批量操作）';
     toggle.onclick = async () => {
-      await api('save', { id: a.id, name: nameInput.value, dir: dirInput.value,
-        mode: a.mode, enabled: a.enabled === false });
+      await api('save', collect(a, true));
       toast(a.enabled === false ? '已启用 ' + a.name : '已停用 ' + a.name, 'ok');
       await refresh();
     };
     acts.appendChild(toggle);
 
-    // 保存（改名/改路径）
+    // 保存（改名/改路径/改机制/改状态清单）
     const save = el('button', 'sw-btn icon', '✓');
-    save.title = '保存名称与路径';
+    save.title = '保存名称、路径、机制与状态清单';
     save.onclick = async () => {
-      await api('save', { id: a.id, name: nameInput.value, dir: dirInput.value,
-        mode: a.mode, enabled: a.enabled !== false,
-        statusFile: a.statusFile, statusKind: a.statusKind, statusKey: a.statusKey });
+      await api('save', collect(a, false));
       toast('已保存', 'ok');
       await refresh();
     };
@@ -348,6 +432,28 @@
     acts.appendChild(del);
 
     row.appendChild(acts);
+
+    // 汇总当前行里的可编辑字段。
+    // 注意：启停也走同一份数据 —— 早期版本启停只带 name/dir，
+    // 会把用户改过的 statusFile 悄悄覆盖回内置默认值。
+    // flipEnabled：启停按钮要翻转状态，保存按钮保持原状。
+    function collect(base, flipEnabled) {
+      const statusFile = statusInput.value.trim();
+      const kind = kindSel.value;
+      const key = keyInput.value.trim();
+      return {
+        id: base.id,
+        name: nameInput.value.trim() || base.name,
+        dir: dirInput.value.trim() || base.dir,
+        mode: modeSel.value,
+        enabled: flipEnabled ? (base.enabled === false) : (base.enabled !== false),
+        // 空串是「显式清空」—— 后端要能把它写进配置去覆盖内置默认值
+        statusFile,
+        statusKind: statusFile ? kind : '',
+        statusKey: statusFile && kind === 'json_array' ? key : '',
+      };
+    }
+
     return row;
   }
 
@@ -395,7 +501,7 @@
     idInput.placeholder = '例如：trae-intl';
     idInput.spellcheck = false;
     idField.appendChild(idInput);
-    idField.appendChild(el('div', 'hint', '唯一，用于内部识别'));
+    idField.appendChild(el('div', 'hint', '唯一，用于内部识别；留空自动生成'));
     row.appendChild(idField);
 
     const stField = el('div', 'sw-field');
@@ -407,6 +513,31 @@
     stField.appendChild(el('div', 'hint', '填了才会写 disabledSkills 之类的清单'));
     row.appendChild(stField);
     box.appendChild(row);
+
+    const row2 = el('div', 'sw-field-row');
+    const kindField = el('div', 'sw-field');
+    kindField.appendChild(el('label', null, '状态清单格式'));
+    const kindSel = el('select');
+    const k1 = el('option', null, 'json 数组');
+    k1.value = 'json_array';
+    const k2 = el('option', null, 'key=value 行');
+    k2.value = 'kv_lines';
+    kindSel.appendChild(k1);
+    kindSel.appendChild(k2);
+    kindSel.value = 'json_array';
+    kindField.appendChild(kindSel);
+    kindField.appendChild(el('div', 'hint', 'json 数组 = 一个字符串数组；key=value = 每行一条'));
+    row2.appendChild(kindField);
+
+    const keyField = el('div', 'sw-field');
+    keyField.appendChild(el('label', null, 'json 字段名'));
+    const keyInput = el('input');
+    keyInput.placeholder = 'disabledSkills';
+    keyInput.spellcheck = false;
+    keyField.appendChild(keyInput);
+    keyField.appendChild(el('div', 'hint', '仅 json 数组格式用得上'));
+    row2.appendChild(keyField);
+    box.appendChild(row2);
 
     const acts = el('div');
     acts.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;';
@@ -423,12 +554,14 @@
         // 没填就按名称生成
         id = 'custom-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       }
+      const statusFile = stInput.value.trim();
+      const kind = kindSel.value;
       const agent = {
         id, name, dir,
         mode: modeSel.value,
-        statusFile: stInput.value.trim() || undefined,
-        statusKind: stInput.value.trim() ? 'json_array' : undefined,
-        statusKey: stInput.value.trim() ? 'disabledSkills' : undefined,
+        statusFile,
+        statusKind: statusFile ? kind : '',
+        statusKey: statusFile && kind === 'json_array' ? (keyInput.value.trim() || 'disabledSkills') : '',
         enabled: true,
       };
       try {

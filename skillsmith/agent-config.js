@@ -330,9 +330,18 @@ function saveAgent(data, remove) {
     dir: data.dir,
     mode: data.mode === 'realdir' ? 'realdir' : 'junction',
   };
-  if (data.statusFile) entry.statusFile = data.statusFile;
-  if (data.statusKind) entry.statusKind = data.statusKind;
-  if (data.statusKey) entry.statusKey = data.statusKey;
+  // 状态清单三项：空串表示「显式清空」，用来覆盖内置端自带的默认值。
+  // 不能用 if (data.statusFile) 判断 —— 空串是假值，会被跳过，
+  // 结果用户清空了状态清单，合并时又被内置的默认值填回来。
+  if (data.statusFile !== undefined && data.statusFile !== null) {
+    entry.statusFile = String(data.statusFile).trim();
+  }
+  if (data.statusKind !== undefined && data.statusKind !== null) {
+    entry.statusKind = String(data.statusKind).trim();
+  }
+  if (data.statusKey !== undefined && data.statusKey !== null) {
+    entry.statusKey = String(data.statusKey).trim();
+  }
   if (data.note) entry.note = data.note;
   if (data.enabled === false) entry.enabled = false;
   if (data.hidden === true) entry.hidden = true;
