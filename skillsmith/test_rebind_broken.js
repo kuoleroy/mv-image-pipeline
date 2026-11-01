@@ -70,8 +70,14 @@ const cfg = agents[agentName];
 const skill = core.listSkills()[0].name;
 const p = path.join(cfg.dir, skill);
 
+// 记下原状，测完要原样恢复 —— 测试不该留下痕迹
+const wasLink = core.isJunction(p);
+const wasTarget = wasLink ? (() => {
+  try { return fs.readlinkSync(p); } catch (e) { return null; }
+})() : null;
+
 // 先摘掉它（如果存在），造一个断链版本
-if (core.isJunction(p)) core.removeJunction(p);
+if (wasLink) core.removeJunction(p);
 const oldTarget = path.join(SANDBOX, 'OLD-NONEXISTENT-PATH', skill);
 fs.mkdirSync(path.dirname(p), { recursive: true });
 fs.symlinkSync(oldTarget, p, 'junction');
@@ -88,8 +94,15 @@ check('正式重绑后已指向当前真源',
   core.linksToCanon(p, skill), item2);
 check('真源内容完好', fs.existsSync(path.join(core.canonRoot(), skill)));
 
-console.log('\n=== 4. 清理 ===');
+console.log('\n=== 4. 还原原状 ===');
+// 恢复成测试前的样子（原来是指向真源的 junction，就恢复成那样）
 if (core.isJunction(p)) core.removeJunction(p);
+if (wasLink) {
+  core.makeJunction(wasTarget || path.join(core.canonRoot(), skill), p);
+  check('已恢复为测试前的链接', core.linksToCanon(p, skill));
+} else {
+  check('测试前不是链接，保持不存在', !fs.existsSync(p));
+}
 cleanup();
 console.log(`\n结果：${pass} 通过, ${fail} 失败\n`);
 process.exit(fail ? 1 : 0);
