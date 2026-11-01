@@ -168,7 +168,18 @@ function removeJunction(p) {
 
 /** 建立 junction 指向真源 */
 function makeJunction(target, linkPath) {
-  if (fs.existsSync(linkPath)) {
+  // 用 lstat 判断「目录项在不在」，不能用 existsSync ——
+  // existsSync 会跟随链接，断链的 junction（指向已不存在的旧地址）
+  // 会被判成「不存在」，于是走到 symlinkSync 直接撞 EEXIST 报错。
+  // 真源搬家后所有链接都会短暂处于断链状态，这个坑必踩。
+  let exists = false;
+  try {
+    fs.lstatSync(linkPath);
+    exists = true;
+  } catch (e) {
+    exists = false;
+  }
+  if (exists) {
     if (isJunction(linkPath)) {
       removeJunction(linkPath);
     } else {
@@ -727,7 +738,19 @@ function rebindAll(opts) {
           // junction 技能都过滤掉，rebind 就找不到要重定向的项（实测踩过）。
           return fs.statSync(p).isDirectory();
         } catch (e) {
-          return false;
+          // 断链的 junction：stat 抛错，但目录项还在（指向的是已不存在的旧地址）。
+          //
+          //   真源根搬家后，所有端的链接会同时断链 —— 这正是「重新绑定」
+          //   最需要生效的场景。如果这里把断链项全过滤掉，rebind 一个都看不见，
+          //   报告只会有「已指向当前真源」的 noop，用户以为绑定成功了，
+          //   结果所有客户端的技能全废（实测踩过：搬完 99 个链接没被重绑）。
+          //
+          //   所以这里用 lstat 兜底：只要是链接就留下来，后面交给重绑逻辑处理。
+          try {
+            return fs.lstatSync(p).isSymbolicLink();
+          } catch (e2) {
+            return false;
+          }
         }
       });
     } catch (e) {
